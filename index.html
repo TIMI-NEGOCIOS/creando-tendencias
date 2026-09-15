@@ -458,6 +458,8 @@ const PROPIEDADES = ["BHSOUTH","ROMA","TAGLE"];
 const CATEGORIAS = ["alquiler","mantenimiento","internet","luz","gas","varios","comision","inversion"];
 
 let division = null, perfilActual = null, mesActual = new Date().toISOString().slice(0,7), pestanaActual = "ingresos";
+let maestros = {inq:[], metodos:[], conceptos:[], pagadores:[]};
+let filtros = {};
 const S = n => "S/ " + (Number(n)||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc = t => String(t ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
 const mostrar = id => {
@@ -592,6 +594,16 @@ const rango = () => {
   return {desde, hasta};
 };
 
+async function cargarMaestros(){
+  const [i, m, c, p] = await Promise.all([
+    sb.from("inquilinos").select("id, nombre, propiedad, habitacion, metodo_pago").eq("activo", true).order("nombre"),
+    sb.from("metodos_pago").select("*").eq("activo", true).order("nombre_interno"),
+    sb.from("conceptos").select("*").eq("activo", true).order("nombre"),
+    sb.from("pagadores").select("*").eq("activo", true).order("orden")
+  ]);
+  maestros = {inq:i.data||[], metodos:m.data||[], conceptos:c.data||[], pagadores:p.data||[]};
+}
+
 async function refrescar(){
   document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("viva", p.dataset.p === pestanaActual));
   if (!conectado) {
@@ -599,6 +611,7 @@ async function refrescar(){
     $("contenido").innerHTML = `<div class="tarjeta"><p class="vacio">Pega la anon key de Supabase para que este módulo cargue datos reales.</p></div>`;
     return;
   }
+  await cargarMaestros();
   await pintarCifras();
   if (pestanaActual === "ingresos") pintarIngresos();
   else if (pestanaActual === "egresos") pintarEgresos();
@@ -628,46 +641,166 @@ window.pagarRenta = async (propiedad) => {
   if (error) alert("No se pudo registrar: " + error.message); else refrescar();
 };
 
+function opcionesConcepto(ambito, actual){
+  return maestros.conceptos.filter(c => c.ambito === ambito)
+    .map(c => `<option ${c.nombre===actual?"selected":""}>${esc(c.nombre)}</option>`).join("");
+}
+function opcionesMetodo(actual){
+  return `<option value="">—</option>` + maestros.metodos
+    .map(m => `<option ${m.nombre_interno===actual?"selected":""}>${esc(m.nombre_interno)}</option>`).join("");
+}
+window.nuevoConcepto = async (ambito, selectId) => {
+  const nombre = prompt("Nombre del concepto nuevo:");
+  if (!nombre) return;
+  const {error} = await sb.from("conceptos").insert({nombre: nombre.trim().toLowerCase(), ambito});
+  if (error) { alert(error.message); return; }
+  await cargarMaestros();
+  const sel = $(selectId);
+  if (sel) { sel.innerHTML = opcionesConcepto(ambito, nombre.trim().toLowerCase()); }
+};
+
+// ---- filtro genérico por columna ----
+function barraFiltros(columnas, datos){
+  return `<div class="filtro">${columnas.map(c => {
+    if (c.tipo === "texto") {
+      const valores = [...new Set(datos.map(r => r[c.campo]).filter(Boolean))].sort();
+      return `<div class="campo"><label>${c.titulo}</label>
+        <select onchange="ponerFiltro('${c.campo}', this.value)">
+          <option value="">Todos</option>
+          ${valores.map(v => `<option ${filtros[c.campo]===v?"selected":""}>${esc(v)}</option>`).join("")}
+        </select></div>`;
+    }
+    if (c.tipo === "fecha")
+      return `<div class="campo"><label>${c.titulo} desde</label>
+        <input type="date" value="${filtros[c.campo+"_desde"]||""}" onchange="ponerFiltro('${c.campo}_desde', this.value)"></div>
+        <div class="campo"><label>hasta</label>
+        <input type="date" value="${filtros[c.campo+"_hasta"]||""}" onchange="ponerFiltro('${c.campo}_hasta', this.value)"></div>`;
+    return `<div class="campo"><label>${c.titulo} mínimo</label>
+      <input type="number" step="0.01" value="${filtros[c.campo+"_min"]||""}" onchange="ponerFiltro('${c.campo}_min', this.value)"></div>
+      <div class="campo"><label>máximo</label>
+      <input type="number" step="0.01" value="${filtros[c.campo+"_max"]||""}" onchange="ponerFiltro('${c.campo}_max', this.value)"></div>`;
+  }).join("")}
+  <div class="campo" style="min-width:auto"><label>&nbsp;</label>
+    <button class="secundario" onclick="filtros={}; refrescar()">Limpiar filtros</button></div></div>`;
+}
+window.ponerFiltro = (campo, valor) => { valor ? filtros[campo] = valor : delete filtros[campo]; refrescar(); };
+
+function aplicarFiltros(filas, columnas){
+  return filas.filter(r => columnas.every(c => {
+    if (c.tipo === "texto") return !filtros[c.campo] || r[c.campo] === filtros[c.campo];
+    if (c.tipo === "fecha") {
+      if (filtros[c.campo+"_desde"] && r[c.campo] < filtros[c.campo+"_desde"]) return false;
+      if (filtros[c.campo+"_hasta"] && r[c.campo] > filtros[c.campo+"_hasta"]) return false;
+      return true;
+    }
+    if (filtros[c.campo+"_min"] && Number(r[c.campo]) < Number(filtros[c.campo+"_min"])) return false;
+    if (filtros[c.campo+"_max"] && Number(r[c.campo]) > Number(filtros[c.campo+"_max"])) return false;
+    return true;
+  }));
+}
+
 async function pintarIngresos(){
   const {desde, hasta} = rango();
   const {data} = await sb.from("ing_alquiler").select("*")
     .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false});
+
+  const columnas = [
+    {campo:"fecha", titulo:"Fecha", tipo:"fecha"},
+    {campo:"propiedad", titulo:"Casa", tipo:"texto"},
+    {campo:"inquilino", titulo:"Nombre", tipo:"texto"},
+    {campo:"concepto", titulo:"Concepto", tipo:"texto"},
+    {campo:"monto", titulo:"Monto", tipo:"numero"}
+  ];
+  const filas = aplicarFiltros(data||[], columnas);
+
   $("contenido").innerHTML = `
     <div class="tarjeta">
       <h4>Registrar un pago</h4>
       <div class="rejilla">
         <div><label>Fecha</label><input id="i-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label>Inquilino</label><select id="i-inq" onchange="autoDatosInquilino()">
+          <option value="">—</option>
+          ${maestros.inq.map(q => `<option value="${q.id}">${esc(q.nombre)} · ${esc(q.propiedad)}</option>`).join("")}
+        </select></div>
         <div><label>Propiedad</label><select id="i-prop">${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
         <div><label>Habitación</label><input id="i-hab" placeholder="3"></div>
-        <div><label>Inquilino</label><input id="i-nom" placeholder="Nombre"></div>
-        <div><label>Renta</label><input id="i-renta" type="number" step="0.01" placeholder="1200"></div>
-        <div><label>Varios</label><input id="i-varios" type="number" step="0.01" placeholder="0"></div>
-        <div><label>Nota</label><input id="i-nota" placeholder="efectivo, yape…"></div>
+        <div><label>Concepto</label><select id="i-concepto" onchange="recalcularComision()">${opcionesConcepto("ingreso","alquiler")}</select>
+          <button class="secundario" style="margin-top:8px;padding:5px 14px;font-size:12px" onclick="nuevoConcepto('ingreso','i-concepto')">Añadir concepto</button></div>
+        <div><label>Monto</label><input id="i-monto" type="number" step="0.01" placeholder="1200" oninput="recalcularComision()"></div>
+        <div><label>Comisión</label><input id="i-comision" type="number" step="0.01" placeholder="0"></div>
+        <div><label>Método de pago</label><select id="i-metodo">${opcionesMetodo()}</select></div>
+        <div><label>Nota</label><input id="i-nota" placeholder="Nota"></div>
         <button class="primario" onclick="guardarIngreso()">Guardar</button>
       </div>
     </div>
+    ${barraFiltros(columnas, data||[])}
     <div class="tarjeta">
-      <h4>Pagos del mes · ${data?.length || 0}</h4>
+      <h4>Pagos del mes · ${filas.length}${filas.length !== (data||[]).length ? ` de ${(data||[]).length}` : ""}</h4>
       <div class="tabla-scroll">${tabla(
-        ["Fecha","Propiedad","Hab.","Inquilino","Renta","Varios","Comisión","Nota",""],
-        (data||[]).map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
-          esc(r.inquilino), S(r.renta), S(r.varios),
+        ["Fecha","Propiedad","Hab.","Inquilino","Concepto","Monto","Comisión","Método","Nota",""],
+        filas.map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
+          esc(r.inquilino), esc(r.concepto||"alquiler"), S(r.monto||r.renta),
           {html: S(r.comision), clase: "audit" + (r.auditado ? " marcado" : ""),
            click: `auditar('ing_alquiler',${r.id},${!r.auditado})`},
-          esc(r.nota||""),
-          `<button class="borrar" onclick="borrar('ing_alquiler',${r.id})">Eliminar</button>`]), [4,5,6])}</div>
+          esc(r.metodo_pago||"—"), esc(r.nota||""),
+          `<span class="acc"><button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
+           <button class="peligro" onclick="borrar('ing_alquiler',${r.id})" title="Eliminar">${IC.tacho}</button></span>`]),
+        [5,6])}</div>
     </div>`;
 }
 
+window.autoDatosInquilino = () => {
+  const q = maestros.inq.find(x => String(x.id) === $("i-inq").value);
+  if (!q) return;
+  $("i-prop").value = q.propiedad;
+  $("i-hab").value = q.habitacion || "";
+  if (q.metodo_pago && [...$("i-metodo").options].some(o => o.value === q.metodo_pago))
+    $("i-metodo").value = q.metodo_pago;
+};
+
+window.recalcularComision = () => {
+  const esAlquiler = $("i-concepto").value.toLowerCase() === "alquiler";
+  $("i-comision").value = esAlquiler ? (Math.round(( +$("i-monto").value || 0) * 10) / 100).toFixed(2) : "0";
+};
+
 window.guardarIngreso = async () => {
+  const q = maestros.inq.find(x => String(x.id) === $("i-inq").value);
   const fila = {
     fecha: $("i-fecha").value, propiedad: $("i-prop").value, habitacion: $("i-hab").value.trim(),
-    inquilino: $("i-nom").value.trim(), renta: +$("i-renta").value || 0,
-    varios: +$("i-varios").value || 0, nota: $("i-nota").value.trim() || null
+    inquilino: q ? q.nombre : "", inquilino_id: q ? q.id : null,
+    concepto: $("i-concepto").value, monto: +$("i-monto").value || 0,
+    comision: +$("i-comision").value || 0,
+    metodo_pago: $("i-metodo").value || null,
+    nota: $("i-nota").value.trim() || null
   };
-  if (!fila.habitacion || !fila.inquilino || !fila.renta) { alert("Falta habitación, inquilino o renta."); return; }
+  if (!fila.inquilino) { alert("Elige un inquilino."); return; }
+  if (!fila.monto) { alert("Falta el monto."); return; }
   const {error} = await sb.from("ing_alquiler").insert(fila);
-  if (error) alert("No se guardó: " + error.message); else refrescar();
+  if (error) alert("No se guardó: " + error.message);
+  else { $("i-monto").value = ""; $("i-nota").value = ""; refrescar(); }
+};
+
+window.editarIngreso = async (id) => {
+  const {data: r} = await sb.from("ing_alquiler").select("*").eq("id", id).single();
+  abrirFicha("Editar ingreso", `
+    <div class="rejilla">
+      <div><label>Fecha</label><input id="z-fecha" type="date" value="${r.fecha}"></div>
+      <div><label>Inquilino</label><input id="z-inq" value="${esc(r.inquilino||"")}"></div>
+      <div><label>Concepto</label><select id="z-concepto">${opcionesConcepto("ingreso", r.concepto||"alquiler")}</select></div>
+      <div><label>Monto</label><input id="z-monto" type="number" step="0.01" value="${r.monto||r.renta||0}"></div>
+      <div><label>Comisión</label><input id="z-comision" type="number" step="0.01" value="${r.comision||0}"></div>
+      <div><label>Método de pago</label><select id="z-metodo">${opcionesMetodo(r.metodo_pago)}</select></div>
+    </div>
+    <div class="campo"><label>Nota</label><input id="z-nota" value="${esc(r.nota||"")}"></div>`,
+    async () => {
+      const {error} = await sb.from("ing_alquiler").update({
+        fecha: $("z-fecha").value, inquilino: $("z-inq").value.trim(),
+        concepto: $("z-concepto").value, monto: +$("z-monto").value||0,
+        comision: +$("z-comision").value||0, metodo_pago: $("z-metodo").value||null,
+        nota: $("z-nota").value.trim()||null
+      }).eq("id", id);
+      return error ? error.message : null;
+    });
 };
 
 async function pintarEgresos(){
@@ -675,87 +808,165 @@ async function pintarEgresos(){
   const {data} = await sb.from("egr_alquiler").select("*")
     .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false});
   const {data: porCat} = await sb.from("v_egresos_categoria").select("*").eq("mes", desde);
+
+  const columnas = [
+    {campo:"fecha", titulo:"Fecha", tipo:"fecha"},
+    {campo:"propiedad", titulo:"Casa", tipo:"texto"},
+    {campo:"categoria_texto", titulo:"Categoría", tipo:"texto"},
+    {campo:"responsable", titulo:"Quién pagó", tipo:"texto"},
+    {campo:"monto", titulo:"Monto", tipo:"numero"}
+  ];
+  const filas = aplicarFiltros(data||[], columnas);
+
   $("contenido").innerHTML = `
     <div class="tarjeta">
       <h4>Registrar un gasto</h4>
       <div class="rejilla">
         <div><label>Fecha</label><input id="e-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
         <div><label>Propiedad</label><select id="e-prop"><option value="">—</option>${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
-        <div><label>Categoría</label><select id="e-cat">${CATEGORIAS.map(c=>`<option>${c}</option>`).join("")}</select></div>
+        <div><label>Categoría</label><select id="e-cat">${opcionesConcepto("servicio","")}</select>
+          <button class="secundario" style="margin-top:8px;padding:5px 14px;font-size:12px" onclick="nuevoConcepto('servicio','e-cat')">Añadir categoría</button></div>
         <div><label>Monto</label><input id="e-monto" type="number" step="0.01" placeholder="150"></div>
-        <div><label>Quién pagó</label><input id="e-resp" placeholder="MAGALLI"></div>
+        <div><label>Quién pagó</label><select id="e-resp">
+          ${maestros.pagadores.map(p => `<option>${esc(p.nombre)}</option>`).join("")}</select>
+          <button class="secundario" style="margin-top:8px;padding:5px 14px;font-size:12px" onclick="nuevoPagador()">Añadir persona</button></div>
         <div><label>Descripción</label><input id="e-desc" placeholder="Materiales de limpieza"></div>
         <button class="primario" onclick="guardarEgreso()">Guardar</button>
       </div>
     </div>
+    ${barraFiltros(columnas, data||[])}
     <div class="tarjeta">
       <h4>Por categoría</h4>
       <div class="tabla-scroll">${tabla(["Categoría","Movimientos","Total"],
         (porCat||[]).map(c => [esc(c.categoria), c.movimientos, S(c.total)]), [2])}</div>
     </div>
     <div class="tarjeta">
-      <h4>Gastos del mes · ${data?.length || 0}</h4>
+      <h4>Gastos del mes · ${filas.length}</h4>
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
-        (data||[]).map(r => [r.fecha, esc(r.propiedad||"—"), `<span class="etiqueta">${esc(r.categoria)}</span>`,
+        filas.map(r => [r.fecha, esc(r.propiedad||"—"),
+          `<span class="etiqueta">${esc(r.categoria_texto||r.categoria)}</span>`,
           {html: S(r.monto), clase: "audit" + (r.auditado ? " marcado" : ""),
            click: `auditar('egr_alquiler',${r.id},${!r.auditado})`},
           esc(r.responsable||""), esc(r.descripcion||""),
-          `<button class="borrar" onclick="borrar('egr_alquiler',${r.id})">Eliminar</button>`]), [3])}</div>
+          `<span class="acc"><button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
+           <button class="peligro" onclick="borrar('egr_alquiler',${r.id})" title="Eliminar">${IC.tacho}</button></span>`]),
+        [3])}</div>
     </div>`;
 }
 
+window.nuevoPagador = async () => {
+  const nombre = prompt("Nombre de quien paga:");
+  if (!nombre) return;
+  const {error} = await sb.from("pagadores").insert({nombre: nombre.trim()});
+  if (error) alert(error.message); else refrescar();
+};
+
 window.guardarEgreso = async () => {
+  const cat = $("e-cat").value;
   const fila = {
-    fecha: $("e-fecha").value, propiedad: $("e-prop").value || null, categoria: $("e-cat").value,
-    monto: +$("e-monto").value || 0, responsable: $("e-resp").value.trim().toUpperCase() || null,
+    fecha: $("e-fecha").value, propiedad: $("e-prop").value || null,
+    categoria_texto: cat, categoria: "varios",
+    monto: +$("e-monto").value || 0,
+    responsable: $("e-resp").value || null,
     descripcion: $("e-desc").value.trim() || null
   };
   if (!fila.monto) { alert("Falta el monto."); return; }
   const {error} = await sb.from("egr_alquiler").insert(fila);
-  if (error) alert("No se guardó: " + error.message); else refrescar();
+  if (error) alert("No se guardó: " + error.message);
+  else { $("e-monto").value = ""; $("e-desc").value = ""; refrescar(); }
+};
+
+window.editarEgreso = async (id) => {
+  const {data: r} = await sb.from("egr_alquiler").select("*").eq("id", id).single();
+  abrirFicha("Editar gasto", `
+    <div class="rejilla">
+      <div><label>Fecha</label><input id="z-fecha" type="date" value="${r.fecha}"></div>
+      <div><label>Propiedad</label><select id="z-prop"><option value="">—</option>
+        ${PROPIEDADES.map(p=>`<option ${p===r.propiedad?"selected":""}>${p}</option>`).join("")}</select></div>
+      <div><label>Categoría</label><select id="z-cat">${opcionesConcepto("servicio", r.categoria_texto||r.categoria)}</select></div>
+      <div><label>Monto</label><input id="z-monto" type="number" step="0.01" value="${r.monto}"></div>
+      <div><label>Quién pagó</label><select id="z-resp">
+        ${maestros.pagadores.map(p => `<option ${p.nombre===r.responsable?"selected":""}>${esc(p.nombre)}</option>`).join("")}</select></div>
+    </div>
+    <div class="campo"><label>Descripción</label><input id="z-desc" value="${esc(r.descripcion||"")}"></div>`,
+    async () => {
+      const {error} = await sb.from("egr_alquiler").update({
+        fecha: $("z-fecha").value, propiedad: $("z-prop").value||null,
+        categoria_texto: $("z-cat").value, monto: +$("z-monto").value||0,
+        responsable: $("z-resp").value||null, descripcion: $("z-desc").value.trim()||null
+      }).eq("id", id);
+      return error ? error.message : null;
+    });
 };
 
 async function pintarDeudas(){
-  const {data} = await sb.from("deudas").select("*").order("saldada").order("fecha", {ascending:false});
+  const {data} = await sb.from("v_deudas_saldo").select("*");
   $("contenido").innerHTML = `
     <div class="tarjeta">
       <h4>Anotar una deuda</h4>
       <div class="rejilla">
-        <div><label>Inquilino</label><input id="d-nom" placeholder="Nombre"></div>
+        <div><label>Socio que debe</label><select id="d-deudor">
+          ${maestros.pagadores.map(p => `<option>${esc(p.nombre)}</option>`).join("")}</select></div>
+        <div><label>Concepto</label><input id="d-concepto" placeholder="Adelanto de caja"></div>
         <div><label>Propiedad</label><select id="d-prop"><option value="">—</option>${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
-        <div><label>Habitación</label><input id="d-hab" placeholder="3"></div>
         <div><label>Monto</label><input id="d-monto" type="number" step="0.01" placeholder="642"></div>
-        <div><label>Motivo</label><input id="d-motivo" placeholder="Saldo de julio"></div>
+        <div><label>Referencia</label><input id="d-ref" placeholder="A qué o a quién corresponde"></div>
         <button class="primario" onclick="guardarDeuda()">Guardar</button>
       </div>
     </div>
     <div class="tarjeta">
-      <h4>Deudas</h4>
+      <h4>Deudas · ${data?.length || 0}</h4>
       <div class="tabla-scroll">${tabla(
-        ["Inquilino","Propiedad","Hab.","Monto","Desde","Motivo","Estado",""],
-        (data||[]).map(r => [esc(r.inquilino), esc(r.propiedad||"—"), esc(r.habitacion||""), S(r.monto), r.fecha,
-          esc(r.motivo||""), r.saldada ? "Saldada" : "Pendiente",
-          r.saldada ? "" : `<button class="borrar" onclick="saldar(${r.id})">Marcar saldada</button>`]), [3])}</div>
+        ["Socio","Concepto","Propiedad","Original","Abonado","Saldo","Desde","Estado",""],
+        (data||[]).map(r => [esc(r.deudor||"—"), esc(r.concepto||""), esc(r.propiedad||"—"),
+          S(r.monto_original), S(r.abonado), S(r.saldo), r.fecha,
+          r.saldada ? "Saldada" : "Pendiente",
+          `<span class="acc">
+            <button onclick="abonar(${r.id})" title="Registrar un abono">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button onclick="verAbonos(${r.id})" title="Ver abonos anteriores">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 7v7"/><circle cx="12" cy="17.5" r=".6" fill="currentColor"/></svg></button>
+            <button class="peligro" onclick="borrar('deudas',${r.id})" title="Eliminar">${IC.tacho}</button>
+          </span>`]), [3,4,5])}</div>
     </div>`;
 }
 
 window.guardarDeuda = async () => {
-  const fila = {inquilino: $("d-nom").value.trim(), propiedad: $("d-prop").value || null,
-    habitacion: $("d-hab").value.trim() || null, monto: +$("d-monto").value || 0,
-    motivo: $("d-motivo").value.trim() || null};
-  if (!fila.inquilino || !fila.monto) { alert("Falta inquilino o monto."); return; }
+  const fila = {deudor: $("d-deudor").value, concepto: $("d-concepto").value.trim()||null,
+    propiedad: $("d-prop").value||null, monto: +$("d-monto").value||0,
+    referencia: $("d-ref").value.trim()||null, inquilino: $("d-deudor").value};
+  if (!fila.monto) { alert("Falta el monto."); return; }
   const {error} = await sb.from("deudas").insert(fila);
   if (error) alert("No se guardó: " + error.message); else refrescar();
 };
-window.saldar = async (id) => {
-  const {error} = await sb.from("deudas").update({saldada:true, fecha_saldo:new Date().toISOString().slice(0,10)}).eq("id", id);
-  if (error) alert(error.message); else refrescar();
+
+window.abonar = (deudaId) => {
+  abrirFicha("Registrar un abono", `
+    <div class="rejilla">
+      <div><label>Monto abonado</label><input id="a-monto" type="number" step="0.01" placeholder="200"></div>
+      <div><label>Fecha</label><input id="a-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div><label>Medio</label><select id="a-medio">${opcionesMetodo()}</select></div>
+    </div>
+    <div class="campo"><label>Nota</label><input id="a-nota" placeholder="Nota"></div>`,
+    async () => {
+      const monto = +$("a-monto").value || 0;
+      if (!monto) return "Falta el monto.";
+      const {error} = await sb.from("abonos").insert({
+        deuda_id: deudaId, monto, fecha: $("a-fecha").value,
+        medio: $("a-medio").value||null, nota: $("a-nota").value.trim()||null});
+      return error ? error.message : null;
+    });
 };
-window.borrar = async (tabla, id) => {
-  if (!confirm("¿Eliminar este registro?")) return;
-  const {error} = await sb.from(tabla).delete().eq("id", id);
-  if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
+
+window.verAbonos = async (deudaId) => {
+  const {data} = await sb.from("abonos").select("*").eq("deuda_id", deudaId).order("fecha", {ascending:false});
+  abrirFicha("Abonos entregados", `
+    <div class="tabla-scroll">${tabla(["Fecha","Monto","Medio","Nota"],
+      (data||[]).map(a => [a.fecha, S(a.monto), esc(a.medio||"—"), esc(a.nota||"")]), [1])}</div>
+    <p class="vacio" style="text-align:left;padding:12px 0 0">
+      Total abonado: ${S((data||[]).reduce((t,a) => t + Number(a.monto), 0))}</p>`,
+    async () => null);
 };
 
 async function pintarResumen(){
@@ -965,11 +1176,12 @@ async function pintarConexiones(){
     </div>
     <div class="tarjeta">
       <h4>Conexiones activas · ${cx?.length || 0}</h4>
-      <div class="tabla-scroll">${tabla(["Nombre","Tipo","URL","Último uso","",""],
+      <div class="tabla-scroll">${tabla(["Nombre","Tipo","URL","Último uso","","",""],
         (cx||[]).map(c => [esc(c.nombre), esc(c.tipo), esc(corto(c.url)),
-          c.ultimo_error ? `<span style="color:var(--alerta)">error</span>`
+          c.ultimo_error ? `<span style="color:var(--alerta)" title="${esc(c.ultimo_error)}">error</span>`
             : (c.ultimo_uso ? c.ultimo_uso.slice(0,10) : "—"),
           `<button class="borrar" onclick="probarConexion(${c.id})">Probar</button>`,
+          `<button class="borrar" onclick="editarConexion(${c.id})">Editar</button>`,
           `<button class="borrar" onclick="borrarConexion(${c.id})">Eliminar</button>`]))}</div>
     </div>`;
 }
@@ -980,6 +1192,32 @@ window.guardarConexion = async () => {
   const {error} = await sb.from("conexiones").insert({nombre, url, tipo});
   if (error) $("c-aviso").textContent = "No se guardó: " + error.message; else pintarConexiones();
 };
+window.editarConexion = async (id) => {
+  const {data: c, error} = await sb.from("conexiones").select("*").eq("id", id).single();
+  if (error) { alert(error.message); return; }
+  abrirFicha(`Editar conexión · ${c.nombre}`, `
+    <div class="rejilla">
+      <div><label>Nombre</label><input id="x-nombre" value="${esc(c.nombre)}"></div>
+      <div><label>Tipo</label><select id="x-tipo">
+        <option value="google_chat" ${c.tipo==="google_chat"?"selected":""}>Google Chat</option></select></div>
+      <div><label>Estado</label><select id="x-activa">
+        <option value="si" ${c.activa?"selected":""}>Activa</option>
+        <option value="no" ${c.activa?"":"selected"}>Apagada</option></select></div>
+    </div>
+    <div class="campo"><label>URL del webhook</label><input id="x-url" value="${esc(c.url)}"></div>
+    ${c.ultimo_error ? `<p class="aviso">Último error: ${esc(c.ultimo_error)}</p>` : ""}`,
+    async () => {
+      const url = $("x-url").value.trim();
+      if (!$("x-nombre").value.trim()) return "Falta el nombre.";
+      if (!url.startsWith("https://")) return "La URL debe empezar con https://";
+      const {error} = await sb.from("conexiones").update({
+        nombre: $("x-nombre").value.trim(), tipo: $("x-tipo").value,
+        url, activa: $("x-activa").value === "si", ultimo_error: null
+      }).eq("id", id);
+      return error ? error.message : null;
+    });
+};
+
 window.probarConexion = async (id) => {
   const {error} = await llamarFuncion("notificar-chat", {prueba:true, conexion_id:id});
   alert(error ? "Falló la prueba: " + error : "Mensaje de prueba enviado.");
@@ -997,6 +1235,7 @@ window.borrarConexion = async (id) => {
 // ===============================================================
 const IC = {
   lapiz:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg>',
   archivar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3z"/><path d="M5 10v9h14v-9"/><path d="M10 14h4"/></svg>',
   volverArriba:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 5 5v4"/></svg>',
   tacho:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>'
@@ -1056,6 +1295,7 @@ function pintarInquilinos(){
     <tr>
       <td data-col="Acciones"><span class="acc">
         <button onclick="fichaInquilino(${q.id})" title="Editar">${IC.lapiz}</button>
+        <button onclick="verContrato(${q.id})" title="Ver contrato">${IC.info}</button>
         ${q.activo
           ? `<button class="peligro" onclick="desactivarInquilino(${q.id})" title="Pasar a inactivos">${IC.tacho}</button>`
           : `<button onclick="reactivarInquilino(${q.id})" title="Reactivar">${IC.volverArriba}</button>`}
@@ -1066,6 +1306,7 @@ function pintarInquilinos(){
       <td data-col="Hab.">${esc(q.habitacion||"—")}</td>
       <td data-col="Día de pago" class="num">${q.dia_pago||"—"}</td>
       <td data-col="Alquiler" class="num">${S(q.monto_alquiler)}</td>
+      <td data-col="Garantía" class="num">${S(q.garantia)}</td>
       <td data-col="Contrato">${q.contrato_inicio||"—"} → ${q.contrato_fin||"—"}</td>
       <td data-col="Método">${esc(q.metodo_pago||"—")}</td>
       <td data-col="Mascotas">${esc(q.mascotas||"—")}</td>
@@ -1078,7 +1319,7 @@ function pintarInquilinos(){
       <div class="tabla-scroll">
         ${lista.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th></th><th>Nombre</th><th>DNI</th><th>Propiedad</th><th>Hab.</th>
-          <th class="num">Día</th><th class="num">Alquiler</th><th>Contrato</th>
+          <th class="num">Día</th><th class="num">Alquiler</th><th class="num">Garantía</th><th>Contrato</th>
           <th>Método</th><th>Mascotas</th><th>Acuerdos</th></tr></thead>
           <tbody>${filas}</tbody></table>`
         : `<p class="vacio">${verInactivos.inq ? "No hay inquilinos inactivos." : "Todavía no hay inquilinos. Usa el botón redondo de abajo a la derecha."}</p>`}
@@ -1091,6 +1332,27 @@ function pintarInquilinos(){
       </div>
     </div>`;
 }
+
+window.verContrato = async (id) => {
+  const {data: q} = await sb.from("inquilinos").select("nombre, contrato_texto").eq("id", id).single();
+  const texto = q?.contrato_texto;
+  if (!texto) { alert("Este inquilino todavía no tiene el contrato cargado."); return; }
+  abrirFicha(`Contrato · ${q.nombre}`, `
+    <textarea readonly style="min-height:420px;font-size:13.5px;line-height:1.6">${esc(texto)}</textarea>
+    <div class="pie-tarjeta">
+      <button class="secundario" onclick="bajarContrato(${id})">Descargar en .txt</button>
+    </div>`, async () => null);
+};
+
+window.bajarContrato = async (id) => {
+  const {data: q} = await sb.from("inquilinos").select("nombre, contrato_texto").eq("id", id).single();
+  const blob = new Blob([q.contrato_texto || ""], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Contrato - ${q.nombre}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
 
 window.alternarInactivos = (cual) => {
   verInactivos[cual] = !verInactivos[cual];
@@ -1127,6 +1389,7 @@ window.fichaInquilino = (id) => {
       <div><label>Cuotas</label><input id="f-cuotas" value="${esc(q.cuotas||"")}" placeholder="quincenal, dos partes"></div>
       <div><label>Teléfono</label><input id="f-tel" value="${esc(q.telefono||"")}"></div>
       <div><label>Mascotas</label><input id="f-mascotas" value="${esc(q.mascotas||"")}"></div>
+      <div><label>Garantía</label><input id="f-garantia" type="number" step="0.01" value="${q.garantia||0}"></div>
     </div>
     <div class="campo"><label>Acuerdos particulares</label><textarea id="f-acuerdos">${esc(q.acuerdos||"")}</textarea></div>
     <div class="campo"><label>Notas</label><textarea id="f-notas">${esc(q.notas||"")}</textarea></div>`,
@@ -1138,7 +1401,8 @@ window.fichaInquilino = (id) => {
         dia_pago: +$("f-dia").value||null, monto_alquiler: +$("f-monto").value||0,
         metodo_pago: $("f-metodo").value.trim()||null, cuotas: $("f-cuotas").value.trim()||null,
         telefono: $("f-tel").value.trim()||null, mascotas: $("f-mascotas").value.trim()||null,
-        acuerdos: $("f-acuerdos").value.trim()||null, notas: $("f-notas").value.trim()||null
+        acuerdos: $("f-acuerdos").value.trim()||null, notas: $("f-notas").value.trim()||null,
+        garantia: +$("f-garantia").value||0
       };
       if (!fila.nombre) return "Falta el nombre.";
       const {error} = id ? await sb.from("inquilinos").update(fila).eq("id", id)
@@ -1488,16 +1752,18 @@ function abrirFicha(titulo, campos, alGuardar, alBorrar){
     const err = await alGuardar();
     $("ficha-guardar").disabled = false;
     if (err) { $("ficha-aviso").textContent = err; return; }
-    cerrarFicha(); refrescarAlq();
+    cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
   if (alBorrar) $("ficha-borrar").onclick = async () => {
     if (!confirm("¿Eliminar este registro?")) return;
     if (!confirm("Última vez: no se puede deshacer. ¿Eliminar?")) return;
     const err = await alBorrar();
     if (err) { $("ficha-aviso").textContent = err; return; }
-    cerrarFicha(); refrescarAlq();
+    cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
 }
+const pestAlqVivo = () => !!document.querySelector("[data-pa]");
+const enAdmin = () => !$("pantalla-admin").classList.contains("oculto");
 const cerrarFicha = () => $("velo").classList.remove("abierto");
 $("velo").addEventListener("click", e => { if (e.target.id === "velo") cerrarFicha(); });
 
