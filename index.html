@@ -778,6 +778,15 @@ window.activar = async (id, activo) => {
   const {error} = await sb.from("perfiles").update({activo}).eq("id", id);
   if (error) alert(error.message); else pintarUsuarios();
 };
+// Lee el mensaje real que devuelve una Edge Function cuando falla
+async function llamarFuncion(nombre, cuerpo){
+  const {data, error} = await sb.functions.invoke(nombre, {body: cuerpo});
+  if (!error) return {data};
+  let detalle = error.message;
+  try { const j = await error.context.json(); if (j?.error) detalle = j.error; } catch {}
+  return {error: detalle};
+}
+
 window.cambiarModo = () => {
   const crear = $("u-modo").value === "crear";
   $("u-caja-clave").style.display = crear ? "" : "none";
@@ -795,11 +804,8 @@ window.invitar = async () => {
   if (!email.includes("@")) { $("u-aviso").textContent = "Escribe un correo válido."; return; }
   if (modo === "crear" && clave.length < 8) { $("u-aviso").textContent = "La contraseña necesita al menos 8 caracteres."; return; }
   $("u-aviso").textContent = "Procesando…";
-  const {data, error} = await sb.functions.invoke("invitar-usuario", {body:{email, nombre, rol, modo, clave}});
-  if (error || data?.error) {
-    $("u-aviso").textContent = "No se pudo: " + (data?.error || error.message);
-    return;
-  }
+  const {error} = await llamarFuncion("invitar-usuario", {email, nombre, rol, modo, clave});
+  if (error) { $("u-aviso").textContent = "No se pudo: " + error; return; }
   $("u-aviso").textContent = modo === "crear"
     ? `Cuenta creada. Pásale estos datos: ${email} · ${clave} — es la única vez que verás la contraseña.`
     : "Invitación enviada a " + email;
@@ -810,8 +816,8 @@ window.invitar = async () => {
 window.nuevaClave = async (id, email) => {
   const clave = prompt(`Nueva contraseña para ${email} (mínimo 8 caracteres):`, claveAlAzar());
   if (!clave) return;
-  const {data, error} = await sb.functions.invoke("invitar-usuario", {body:{modo:"clave", usuario_id:id, clave}});
-  alert(error || data?.error ? "No se pudo cambiar: " + (data?.error || error.message)
+  const {error} = await llamarFuncion("invitar-usuario", {modo:"clave", usuario_id:id, clave});
+  alert(error ? "No se pudo cambiar: " + error
     : `Contraseña cambiada. Pásale: ${email} · ${clave}`);
 };
 
@@ -849,8 +855,8 @@ window.guardarConexion = async () => {
   if (error) $("c-aviso").textContent = "No se guardó: " + error.message; else pintarConexiones();
 };
 window.probarConexion = async (id) => {
-  const {data, error} = await sb.functions.invoke("notificar-chat", {body:{prueba:true, conexion_id:id}});
-  alert(error ? "Falló la prueba: " + (data?.error || error.message) : "Mensaje de prueba enviado.");
+  const {error} = await llamarFuncion("notificar-chat", {prueba:true, conexion_id:id});
+  alert(error ? "Falló la prueba: " + error : "Mensaje de prueba enviado.");
   pintarConexiones();
 };
 window.borrarConexion = async (id) => {
