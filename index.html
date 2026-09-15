@@ -740,21 +740,28 @@ async function pintarUsuarios(){
 
   $("cuerpo-admin").innerHTML = `
     <div class="tarjeta">
-      <h4>Invitar a alguien</h4>
+      <h4>Dar acceso a alguien</h4>
       <div class="rejilla">
         <div><label>Correo</label><input id="u-email" type="email" placeholder="persona@correo.com"></div>
         <div><label>Nombre</label><input id="u-nombre" placeholder="Nombre y apellido"></div>
         <div><label>Rol</label><select id="u-rol">${opciones("usuario")}</select></div>
-        <button class="primario" onclick="invitar()">Enviar invitación</button>
+        <div><label>Cómo</label><select id="u-modo" onchange="cambiarModo()">
+          <option value="crear">Crear con contraseña</option>
+          <option value="invitar">Enviar invitación por correo</option>
+        </select></div>
+        <div id="u-caja-clave"><label>Contraseña</label><input id="u-clave" placeholder="mínimo 8 caracteres"></div>
+        <div id="u-caja-gen" style="align-self:end"><button class="atras" style="margin:0" onclick="generarClave()">Generar una</button></div>
+        <button class="primario" onclick="invitar()">Crear acceso</button>
       </div>
       <p class="vacio" id="u-aviso" style="text-align:left;padding:10px 0 0"></p>
     </div>
     <div class="tarjeta">
       <h4>Personas con acceso · ${gente?.length || 0}</h4>
-      <div class="tabla-scroll">${tabla(["Nombre","Correo","Rol","Estado"],
+      <div class="tabla-scroll">${tabla(["Nombre","Correo","Rol","Estado",""],
         (gente||[]).map(p => [esc(p.nombre||"—"), esc(p.email),
           `<select onchange="cambiarRol('${p.id}', this.value)">${opciones(p.rol)}</select>`,
-          `<button class="borrar" onclick="activar('${p.id}', ${!p.activo})">${p.activo ? "Activa" : "Desactivada"}</button>`]))}</div>
+          `<button class="borrar" onclick="activar('${p.id}', ${!p.activo})">${p.activo ? "Activa" : "Desactivada"}</button>`,
+          `<button class="borrar" onclick="nuevaClave('${p.id}','${esc(p.email)}')">Cambiar contraseña</button>`]))}</div>
     </div>
     <div class="tarjeta">
       <h4>Invitaciones recientes</h4>
@@ -771,15 +778,41 @@ window.activar = async (id, activo) => {
   const {error} = await sb.from("perfiles").update({activo}).eq("id", id);
   if (error) alert(error.message); else pintarUsuarios();
 };
+window.cambiarModo = () => {
+  const crear = $("u-modo").value === "crear";
+  $("u-caja-clave").style.display = crear ? "" : "none";
+  $("u-caja-gen").style.display = crear ? "" : "none";
+};
+const claveAlAzar = () => {
+  const abc = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(crypto.getRandomValues(new Uint32Array(12)), n => abc[n % abc.length]).join("");
+};
+window.generarClave = () => { $("u-clave").value = claveAlAzar(); };
+
 window.invitar = async () => {
-  const email = $("u-email").value.trim(), nombre = $("u-nombre").value.trim(), rol = $("u-rol").value;
+  const email = $("u-email").value.trim(), nombre = $("u-nombre").value.trim(),
+        rol = $("u-rol").value, modo = $("u-modo").value, clave = $("u-clave").value;
   if (!email.includes("@")) { $("u-aviso").textContent = "Escribe un correo válido."; return; }
-  $("u-aviso").textContent = "Enviando…";
-  const {data, error} = await sb.functions.invoke("invitar-usuario", {body:{email, nombre, rol}});
-  $("u-aviso").textContent = error
-    ? "No se pudo invitar: " + (data?.error || error.message)
+  if (modo === "crear" && clave.length < 8) { $("u-aviso").textContent = "La contraseña necesita al menos 8 caracteres."; return; }
+  $("u-aviso").textContent = "Procesando…";
+  const {data, error} = await sb.functions.invoke("invitar-usuario", {body:{email, nombre, rol, modo, clave}});
+  if (error || data?.error) {
+    $("u-aviso").textContent = "No se pudo: " + (data?.error || error.message);
+    return;
+  }
+  $("u-aviso").textContent = modo === "crear"
+    ? `Cuenta creada. Pásale estos datos: ${email} · ${clave} — es la única vez que verás la contraseña.`
     : "Invitación enviada a " + email;
-  if (!error) pintarUsuarios();
+  $("u-email").value = ""; $("u-nombre").value = "";
+  pintarUsuarios();
+};
+
+window.nuevaClave = async (id, email) => {
+  const clave = prompt(`Nueva contraseña para ${email} (mínimo 8 caracteres):`, claveAlAzar());
+  if (!clave) return;
+  const {data, error} = await sb.functions.invoke("invitar-usuario", {body:{modo:"clave", usuario_id:id, clave}});
+  alert(error || data?.error ? "No se pudo cambiar: " + (data?.error || error.message)
+    : `Contraseña cambiada. Pásale: ${email} · ${clave}`);
 };
 
 async function pintarConexiones(){
