@@ -9,130 +9,131 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --papel:#FDFCFD;
-    --tinta:#2B2430;
-    --morado:#8E2C7B;
-    --morado-hondo:#6A1F5C;
-    --magenta:#B4479B;
-    --lila:#C08BD0;
-    --lila-velo:#F5EDF7;
-    --rosa-velo:#FBF0F5;
-    --agua:#4FBBD4;
-    --agua-velo:#EAF7FA;
-    --linea:#E6DEEA;
-    --gris:#6E6678;
-    --gris-claro:#9B93A5;
-    --medida:1120px;
-    --curva:20px;
+    --papel:#FDFCFD; --tinta:#2B2430;
+    --morado:#8E2C7B; --morado-hondo:#6A1F5C; --magenta:#B4479B;
+    --lila:#C08BD0; --lila-velo:#F5EDF7; --agua:#4FBBD4; --agua-velo:#EAF7FA;
+    --linea:#E6DEEA; --gris:#6E6678; --gris-claro:#9B93A5;
+    --verde:#3E9A78; --alerta:#C4526F;
+    --medida:1120px; --curva:20px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{-webkit-text-size-adjust:100%}
-  body{
-    font-family:'Jost',system-ui,sans-serif;font-weight:300;
-    background:var(--papel);color:var(--tinta);
-    min-height:100vh;display:flex;flex-direction:column;line-height:1.55;
-  }
+  body{font-family:'Jost',system-ui,sans-serif;font-weight:300;background:var(--papel);color:var(--tinta);
+       min-height:100vh;display:flex;flex-direction:column;line-height:1.55}
   button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
-
   .marco{width:100%;max-width:var(--medida);margin:0 auto;padding:0 28px;flex:1;display:flex;flex-direction:column}
 
-  /* ---------- cabecera ---------- */
   header{padding:34px 0 0;display:flex;align-items:center;gap:14px}
   .isotipo{width:34px;height:34px;flex:none}
   .marca{font-family:'Cormorant Garamond',serif;font-size:21px;letter-spacing:.12em;color:var(--morado-hondo)}
   .sello{font-size:12px;color:var(--gris-claro);letter-spacing:.1em;margin-left:auto}
 
-  main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:56px 0}
-  h1{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,6vw,58px);font-weight:400;letter-spacing:.01em;line-height:1.08}
+  main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:52px 0}
+  main.arriba{justify-content:flex-start}
+  h1{font-family:'Cormorant Garamond',serif;font-size:clamp(32px,5.5vw,54px);font-weight:400;line-height:1.08}
   .bajada{margin-top:12px;max-width:46ch;color:var(--gris);font-size:16px}
 
-  /* ---------- divisiones ---------- */
-  .divisiones{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
-  .division{
-    border:1px solid var(--linea);border-radius:var(--curva);background:#fff;
-    padding:36px 30px 30px;display:flex;flex-direction:column;align-items:center;gap:20px;
-    text-align:center;min-height:330px;position:relative;overflow:hidden;
-    transition:transform .3s ease, box-shadow .3s ease, border-color .3s ease;
-  }
-  .division::before{
-    content:"";position:absolute;inset:0 0 auto;height:3px;
-    background:linear-gradient(90deg,var(--morado-hondo),var(--magenta),var(--lila));
-    opacity:0;transition:opacity .3s ease;
-  }
-  .division.agua::before{background:linear-gradient(90deg,var(--magenta),var(--lila),var(--agua))}
-  .division:hover,.division:focus-visible{
-    transform:translateY(-4px);border-color:transparent;outline:none;
-    box-shadow:0 14px 34px -18px rgba(110,32,92,.45), 0 0 0 1px var(--lila);
-  }
-  .division:hover::before,.division:focus-visible::before{opacity:1}
+  /* acceso */
+  .acceso{max-width:400px;width:100%;margin:0 auto}
+  .campo{margin-top:20px}
+  label{display:block;font-size:13px;color:var(--gris);margin-bottom:7px}
+  input,select{width:100%;padding:12px 14px;font:inherit;font-size:16px;color:var(--tinta);
+    border:1px solid var(--linea);border-radius:12px;background:#fff;transition:border-color .25s,box-shadow .25s}
+  input:focus,select:focus{outline:none;border-color:var(--lila);box-shadow:0 0 0 3px var(--lila-velo)}
+  .primario{margin-top:28px;width:100%;padding:14px;border-radius:999px;color:#fff;font-size:14px;letter-spacing:.1em;
+    background:linear-gradient(100deg,var(--morado-hondo),var(--magenta));transition:filter .25s,transform .2s}
+  .primario:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .primario:disabled{opacity:.5;transform:none;cursor:default}
+  .aviso{margin-top:16px;font-size:14px;color:var(--alerta);min-height:20px}
 
+  /* divisiones */
+  .divisiones{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+  .division{border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:36px 30px 30px;
+    display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;min-height:330px;
+    position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s,border-color .3s}
+  .division::before{content:"";position:absolute;inset:0 0 auto;height:3px;
+    background:linear-gradient(90deg,var(--morado-hondo),var(--magenta),var(--lila));opacity:0;transition:opacity .3s}
+  .division.agua::before{background:linear-gradient(90deg,var(--magenta),var(--lila),var(--agua))}
+  .division:hover,.division:focus-visible{transform:translateY(-4px);border-color:transparent;outline:none;
+    box-shadow:0 14px 34px -18px rgba(110,32,92,.45),0 0 0 1px var(--lila)}
+  .division:hover::before,.division:focus-visible::before{opacity:1}
   .emblema{width:132px;height:132px;display:grid;place-items:center}
   .emblema svg{width:100%;height:100%}
   .division h2{font-family:'Cormorant Garamond',serif;font-size:29px;font-weight:500;color:var(--morado-hondo)}
   .division .lema{font-size:12.5px;letter-spacing:.16em;color:var(--agua);margin-top:4px}
   .division p{font-size:14.5px;color:var(--gris);margin-top:10px;max-width:30ch}
-  .entrar{
-    margin-top:auto;font-size:13px;letter-spacing:.14em;color:#fff;
-    background:var(--morado);border-radius:999px;padding:9px 26px;transition:background .3s ease;
-  }
+  .entrar{margin-top:auto;font-size:13px;letter-spacing:.14em;color:#fff;background:var(--morado);
+    border-radius:999px;padding:9px 26px;transition:background .3s}
   .division:hover .entrar{background:var(--morado-hondo)}
   .division.agua .entrar{background:var(--magenta)}
-  .division.agua:hover .entrar{background:var(--morado)}
 
-  /* ---------- acceso ---------- */
-  .acceso{max-width:400px;width:100%}
-  .volver{font-size:13px;color:var(--gris-claro);margin-bottom:24px;display:inline-flex;gap:7px;align-items:center}
-  .volver:hover{color:var(--morado)}
-  .campo{margin-top:20px}
-  label{display:block;font-size:13px;color:var(--gris);margin-bottom:7px}
-  input{
-    width:100%;padding:12px 14px;font:inherit;font-size:16px;color:var(--tinta);
-    border:1px solid var(--linea);border-radius:12px;background:#fff;transition:border-color .25s ease, box-shadow .25s ease;
-  }
-  input:focus{outline:none;border-color:var(--lila);box-shadow:0 0 0 3px var(--lila-velo)}
-  .primario{
-    margin-top:30px;width:100%;padding:14px;border-radius:999px;color:#fff;font-size:14px;letter-spacing:.1em;
-    background:linear-gradient(100deg,var(--morado-hondo),var(--magenta));
-    transition:filter .25s ease, transform .2s ease;
-  }
-  .primario:hover{filter:brightness(1.08);transform:translateY(-1px)}
-  .primario:disabled{opacity:.5;transform:none;cursor:default}
-  .aviso{margin-top:16px;font-size:14px;color:#A8375F;min-height:20px}
-
-  /* ---------- panel ---------- */
+  /* barra de navegación interna */
+  .atras{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--gris);
+    border:1px solid var(--linea);border-radius:999px;padding:7px 18px 7px 14px;margin-bottom:22px;
+    transition:border-color .25s,color .25s,background .25s}
+  .atras:hover{color:var(--morado-hondo);border-color:var(--lila);background:var(--lila-velo)}
+  .atras svg{width:16px;height:16px}
   .quien{display:flex;gap:14px;align-items:center;font-size:14px;color:var(--gris);margin-top:12px;flex-wrap:wrap}
   .insignia{background:var(--lila-velo);color:var(--morado-hondo);border-radius:999px;padding:4px 14px;font-size:12.5px;letter-spacing:.06em}
   .salir{font-size:13px;color:var(--gris-claro)}
   .salir:hover{color:var(--morado)}
+
+  /* módulos */
   .modulos{margin-top:36px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}
-  .modulo{
-    border:1px solid var(--linea);border-radius:var(--curva);background:#fff;
-    padding:32px 22px 26px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-height:210px;
-    transition:transform .3s ease, box-shadow .3s ease, border-color .3s ease;
-  }
-  .modulo:hover,.modulo:focus-visible{
-    transform:translateY(-4px);border-color:transparent;outline:none;
-    box-shadow:0 14px 30px -18px rgba(110,32,92,.4), 0 0 0 1px var(--lila);
-  }
-  .icono{
-    width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
-    background:var(--lila-velo);color:var(--morado);transition:background .3s ease, color .3s ease;
-  }
+  .modulo{border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:32px 22px 26px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-height:210px;
+    transition:transform .3s,box-shadow .3s,border-color .3s;cursor:pointer}
+  .modulo:hover,.modulo:focus-visible{transform:translateY(-4px);border-color:transparent;outline:none;
+    box-shadow:0 14px 30px -18px rgba(110,32,92,.4),0 0 0 1px var(--lila)}
+  .icono{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+    background:var(--lila-velo);color:var(--morado);transition:background .3s,color .3s}
   .modulo:hover .icono{background:var(--agua-velo);color:var(--agua)}
   .icono svg{width:28px;height:28px}
   .modulo h3{font-size:18.5px;font-weight:400;color:var(--morado-hondo)}
   .modulo p{font-size:13.5px;color:var(--gris);max-width:26ch}
   .pronto{margin-top:auto;font-size:11.5px;color:var(--gris-claro);letter-spacing:.1em}
 
-  footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  /* módulo egresos */
+  .filtro{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-top:24px}
+  .filtro .campo{margin:0;min-width:190px}
+  .cifras{margin-top:26px;display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .cifra{border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:22px}
+  .cifra span{font-size:12.5px;color:var(--gris-claro);letter-spacing:.08em;display:block}
+  .cifra strong{font-family:'Cormorant Garamond',serif;font-size:31px;font-weight:500;color:var(--morado-hondo);display:block;margin-top:6px}
+  .cifra.util strong{color:var(--verde)}
+  .cifra.egre strong{color:var(--alerta)}
+  .alerta{margin-top:22px;border:1px solid #F0D8DF;background:#FDF4F7;border-radius:var(--curva);padding:16px 20px;
+    font-size:14px;color:#8A3550;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .alerta button{color:var(--morado-hondo);border-bottom:1px solid currentColor;font-size:13.5px}
+
+  .pestanas{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap}
+  .pestana{border:1px solid var(--linea);border-radius:999px;padding:8px 22px;font-size:14px;color:var(--gris);transition:.25s}
+  .pestana:hover{border-color:var(--lila);color:var(--morado-hondo)}
+  .pestana.viva{background:var(--morado-hondo);border-color:var(--morado-hondo);color:#fff}
+
+  .tarjeta{margin-top:20px;border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:24px;overflow:hidden}
+  .tarjeta h4{font-size:16px;font-weight:400;color:var(--morado-hondo);margin-bottom:14px}
+  .rejilla{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end}
+  .rejilla .primario{margin-top:0;padding:12px 20px;width:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  th{text-align:left;font-weight:400;font-size:12px;letter-spacing:.08em;color:var(--gris-claro);padding:10px 12px;border-bottom:1px solid var(--linea)}
+  td{padding:11px 12px;border-bottom:1px solid #F2EDF4;color:var(--tinta)}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .vacio{padding:26px 12px;color:var(--gris-claro);font-size:14px;text-align:center}
+  .tabla-scroll{overflow-x:auto;margin:0 -24px;padding:0 24px}
+  .etiqueta{background:var(--lila-velo);color:var(--morado-hondo);border-radius:999px;padding:3px 11px;font-size:12px}
+  .borrar{color:var(--gris-claro);font-size:13px}
+  .borrar:hover{color:var(--alerta)}
+
+  footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
-  @media (max-width:640px){.marco{padding:0 18px}main{padding:40px 0}}
+  @media (max-width:640px){.marco{padding:0 18px}main{padding:34px 0}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 
-<!-- Isotipo reutilizable: casa con trazos en degradé y ventana agua -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <linearGradient id="deg" x1="0" y1="1" x2="1" y2="0">
@@ -150,57 +151,18 @@
 </svg>
 
 <div class="marco">
-
   <header>
     <svg class="isotipo" viewBox="0 0 200 150"><use href="#casa"/></svg>
     <div class="marca">CREANDO TENDENCIAS</div>
     <div class="sello">Sistema interno</div>
   </header>
 
-  <main>
+  <main id="lienzo">
 
-    <!-- ===== 1. DIVISIONES ===== -->
-    <section id="pantalla-divisiones">
-      <h1>Escoge tu división</h1>
-      <p class="bajada">Cada división abre sus propios módulos. Tu acceso depende del rol que tengas asignado.</p>
-
-      <div class="divisiones">
-        <button class="division" data-division="tendencias">
-          <div class="emblema"><svg viewBox="0 0 200 150"><use href="#casa"/></svg></div>
-          <div>
-            <h2>Creando Tendencias</h2>
-            <div class="lema">PROYECTA · DISEÑA · DECORA</div>
-            <p>Clientes, stock y almacén.</p>
-          </div>
-          <span class="entrar">Entrar</span>
-        </button>
-
-        <button class="division agua" data-division="hogares">
-          <div class="emblema">
-            <svg viewBox="0 0 200 150" fill="none" stroke="url(#deg)" stroke-width="5" stroke-linejoin="round">
-              <path d="M30 132V62l70-46 70 46v70z"/>
-              <path d="M30 132h140"/>
-              <rect x="78" y="82" width="44" height="50" rx="3"/>
-              <circle cx="100" cy="60" r="11" stroke="#4FBBD4"/>
-              <path d="M100 71v14" stroke="#4FBBD4"/>
-            </svg>
-          </div>
-          <div>
-            <h2>Creando Hogares</h2>
-            <div class="lema">ADMINISTRA · ALQUILA · COBRA</div>
-            <p>Alquileres, contratos y pagos.</p>
-          </div>
-          <span class="entrar">Entrar</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ===== 2. ACCESO ===== -->
-    <section id="pantalla-acceso" class="acceso oculto">
-      <button class="volver" data-volver>← Volver a divisiones</button>
-      <h1 id="titulo-acceso">Acceso</h1>
-      <p class="bajada">Ingresa con tu correo y contraseña.</p>
-
+    <!-- ===== 1. ACCESO (primera pantalla) ===== -->
+    <section id="pantalla-acceso" class="acceso">
+      <h1>Bienvenida</h1>
+      <p class="bajada">Ingresa con tu correo y contraseña. Las cuentas las crea una super administradora.</p>
       <div class="campo">
         <label for="email">Correo</label>
         <input id="email" type="email" autocomplete="username" placeholder="tucorreo@ejemplo.com">
@@ -213,15 +175,61 @@
       <p class="aviso" id="aviso"></p>
     </section>
 
-    <!-- ===== 3. PANEL ===== -->
-    <section id="pantalla-panel" class="oculto">
-      <h1 id="titulo-panel">Panel</h1>
+    <!-- ===== 2. DIVISIONES ===== -->
+    <section id="pantalla-divisiones" class="oculto">
+      <h1>Escoge tu división</h1>
+      <p class="bajada">Cada división abre sus propios módulos.</p>
       <div class="quien">
         <span id="quien-nombre"></span>
         <span class="insignia" id="quien-rol"></span>
         <button class="salir" id="btn-salir">Cerrar sesión</button>
       </div>
+      <div class="divisiones">
+        <button class="division" data-division="tendencias">
+          <div class="emblema"><svg viewBox="0 0 200 150"><use href="#casa"/></svg></div>
+          <div>
+            <h2>Creando Tendencias</h2>
+            <div class="lema">PROYECTA · DISEÑA · DECORA</div>
+            <p>Clientes, stock y almacén.</p>
+          </div>
+          <span class="entrar">Entrar</span>
+        </button>
+        <button class="division agua" data-division="hogares">
+          <div class="emblema">
+            <svg viewBox="0 0 200 150" fill="none" stroke="url(#deg)" stroke-width="5" stroke-linejoin="round">
+              <path d="M30 132V62l70-46 70 46v70z"/><path d="M30 132h140"/>
+              <rect x="78" y="82" width="44" height="50" rx="3"/>
+              <circle cx="100" cy="60" r="11" stroke="#4FBBD4"/><path d="M100 71v14" stroke="#4FBBD4"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Creando Hogares</h2>
+            <div class="lema">ADMINISTRA · ALQUILA · COBRA</div>
+            <p>Alquileres, egresos y gastos.</p>
+          </div>
+          <span class="entrar">Entrar</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== 3. MÓDULOS DE LA DIVISIÓN ===== -->
+    <section id="pantalla-panel" class="oculto">
+      <button class="atras" data-ir="pantalla-divisiones">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        Divisiones
+      </button>
+      <h1 id="titulo-panel">Panel</h1>
       <div class="modulos" id="lista-modulos"></div>
+    </section>
+
+    <!-- ===== 4. MÓDULO ABIERTO ===== -->
+    <section id="pantalla-modulo" class="oculto">
+      <button class="atras" id="volver-panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        <span id="texto-volver">Volver</span>
+      </button>
+      <h1 id="titulo-modulo"></h1>
+      <div id="cuerpo-modulo"></div>
     </section>
 
   </main>
@@ -242,88 +250,353 @@ const SUPABASE_ANON = "TU_SUPABASE_ANON_KEY";
 
 const conectado = !SUPABASE_ANON.startsWith("TU_");
 const sb = conectado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
-if (conectado) document.getElementById("estado-conexion").textContent = "Conectado a Supabase";
+const $ = id => document.getElementById(id);
+if (conectado) $("estado-conexion").textContent = "Conectado a Supabase";
 
 const ICONOS = {
-  clientes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M18 14.2a3.5 3.5 0 0 1 2.5 3.3V19M16.5 4.3a3.5 3.5 0 0 1 0 6.4"/></svg>',
-  almacen:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5V20H3z"/><path d="M8 20v-6h8v6"/><path d="M8 14h8"/><path d="M12 14v6"/></svg>',
+  clientes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M18 14.2a3.5 3.5 0 0 1 2.5 3.3V19M16.5 4.3a3.5 3.5 0 0 1 0 6.4"/></svg>',
+  almacen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5V20H3z"/><path d="M8 20v-6h8v6"/><path d="M8 14h8"/><path d="M12 14v6"/></svg>',
   alquileres:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10l8-6 8 6v10z"/><path d="M4 20h16"/><circle cx="12" cy="12.5" r="2"/><path d="M12 14.5V18"/><path d="M12 16.5h1.8"/></svg>',
-  usuarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.7 7.5 9.5 4.4-1.8 7.5-5.3 7.5-9.5V6z"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8.6 16.5a3.8 3.8 0 0 1 6.8 0"/></svg>'
+  egresos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16v12H4z"/><path d="M4 7.5 7 4h10l3 3.5"/><path d="M9.5 12h5"/><path d="M12 9.5v5"/></svg>',
+  usuarios:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.7 7.5 9.5 4.4-1.8 7.5-5.3 7.5-9.5V6z"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8.6 16.5a3.8 3.8 0 0 1 6.8 0"/></svg>'
 };
 const MODULOS = {
-  clientes:  { nombre:"Clientes",        texto:"Directorio, contacto e historial." },
-  almacen:   { nombre:"Stock y almacén", texto:"Productos, entradas, salidas y stock." },
-  alquileres:{ nombre:"Alquileres",      texto:"Propiedades, contratos y pagos." },
-  usuarios:  { nombre:"Usuarios y permisos", texto:"Altas, roles y límites de acceso." }
+  clientes:{nombre:"Clientes",texto:"Directorio, contacto e historial."},
+  almacen:{nombre:"Stock y almacén",texto:"Productos, entradas, salidas y stock."},
+  alquileres:{nombre:"Alquileres",texto:"Propiedades, habitaciones y contratos."},
+  egresos:{nombre:"Egresos y gastos",texto:"Ingresos, gastos, comisiones y deudas."},
+  usuarios:{nombre:"Usuarios y permisos",texto:"Altas, roles y límites de acceso."}
 };
 const DIVISIONES = {
-  tendencias:{ nombre:"Creando Tendencias", modulos:["clientes","almacen"] },
-  hogares:   { nombre:"Creando Hogares",    modulos:["alquileres"] }
+  tendencias:{nombre:"Creando Tendencias",modulos:["clientes","almacen"]},
+  hogares:{nombre:"Creando Hogares",modulos:["alquileres","egresos"]}
 };
-const ROLES = { super_admin:"Super administradora", admin:"Administradora", staff:"Staff", usuario:"Usuario", cliente:"Cliente" };
+const ROLES = {super_admin:"Super administradora",admin:"Administradora",staff:"Staff",usuario:"Usuario",cliente:"Cliente"};
+const PROPIEDADES = ["BHSOUTH","ROMA","TAGLE"];
+const CATEGORIAS = ["alquiler","mantenimiento","internet","luz","gas","varios","comision","inversion"];
 
-let division = null;
-const $ = id => document.getElementById(id);
-const mostrar = id => ["pantalla-divisiones","pantalla-acceso","pantalla-panel"]
-  .forEach(p => $(p).classList.toggle("oculto", p !== id));
+let division = null, perfilActual = null, mesActual = new Date().toISOString().slice(0,7), pestanaActual = "ingresos";
+const S = n => "S/ " + (Number(n)||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = t => String(t ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+const mostrar = id => {
+  ["pantalla-acceso","pantalla-divisiones","pantalla-panel","pantalla-modulo"]
+    .forEach(p => $(p).classList.toggle("oculto", p !== id));
+  $("lienzo").classList.toggle("arriba", id === "pantalla-modulo" || id === "pantalla-panel");
+  window.scrollTo(0,0);
+};
 
-document.querySelectorAll(".division").forEach(b => b.addEventListener("click", () => {
-  division = b.dataset.division;
-  $("titulo-acceso").textContent = DIVISIONES[division].nombre;
-  $("aviso").textContent = "";
-  mostrar("pantalla-acceso");
-  $("email").focus();
-}));
-document.querySelectorAll("[data-volver]").forEach(b =>
-  b.addEventListener("click", () => mostrar("pantalla-divisiones")));
-
+// ---------- acceso ----------
 $("btn-entrar").addEventListener("click", entrar);
 $("clave").addEventListener("keydown", e => { if (e.key === "Enter") entrar(); });
 
 async function entrar(){
-  const email = $("email").value.trim(), clave = $("clave").value, aviso = $("aviso");
-  aviso.textContent = "";
-  if (!email || !clave) { aviso.textContent = "Falta el correo o la contraseña."; return; }
+  const email = $("email").value.trim(), clave = $("clave").value;
+  $("aviso").textContent = "";
+  if (!email || !clave) { $("aviso").textContent = "Falta el correo o la contraseña."; return; }
 
-  if (!conectado) { abrirPanel({ nombre: email.split("@")[0], rol: "super_admin" }); return; }
+  if (!conectado) { abrirDivisiones({nombre:email.split("@")[0], rol:"super_admin"}); return; }
 
   $("btn-entrar").disabled = true;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: clave });
+  const {data, error} = await sb.auth.signInWithPassword({email, password: clave});
   $("btn-entrar").disabled = false;
-  if (error) { aviso.textContent = "Correo o contraseña incorrectos."; return; }
+  if (error) { $("aviso").textContent = "Correo o contraseña incorrectos."; return; }
 
-  const { data: perfil } = await sb.from("perfiles").select("nombre, rol, activo").eq("id", data.user.id).single();
+  const {data: perfil} = await sb.from("perfiles").select("nombre, rol, activo").eq("id", data.user.id).single();
   if (!perfil || !perfil.activo) {
-    aviso.textContent = "Esta cuenta está desactivada. Habla con una super administradora.";
+    $("aviso").textContent = "Esta cuenta está desactivada. Habla con una super administradora.";
     await sb.auth.signOut(); return;
   }
-  abrirPanel(perfil);
+  abrirDivisiones(perfil);
 }
 
-function abrirPanel(perfil){
-  $("titulo-panel").textContent = DIVISIONES[division].nombre;
+function abrirDivisiones(perfil){
+  perfilActual = perfil;
   $("quien-nombre").textContent = perfil.nombre || "";
   $("quien-rol").textContent = ROLES[perfil.rol] || perfil.rol;
-
-  const lista = DIVISIONES[division].modulos.slice();
-  if (perfil.rol === "super_admin") lista.push("usuarios");
-
-  $("lista-modulos").innerHTML = lista.map(id => `
-    <div class="modulo" tabindex="0">
-      <div class="icono">${ICONOS[id]}</div>
-      <h3>${MODULOS[id].nombre}</h3>
-      <p>${MODULOS[id].texto}</p>
-      <span class="pronto">En construcción</span>
-    </div>`).join("");
-
-  mostrar("pantalla-panel");
+  mostrar("pantalla-divisiones");
 }
 
 $("btn-salir").addEventListener("click", async () => {
   if (conectado) await sb.auth.signOut();
-  $("email").value = ""; $("clave").value = "";
-  mostrar("pantalla-divisiones");
+  $("email").value = ""; $("clave").value = ""; perfilActual = null;
+  mostrar("pantalla-acceso");
 });
+
+// ---------- navegación ----------
+document.querySelectorAll(".division").forEach(b => b.addEventListener("click", () => {
+  division = b.dataset.division;
+  $("titulo-panel").textContent = DIVISIONES[division].nombre;
+  const lista = DIVISIONES[division].modulos.slice();
+  if (perfilActual?.rol === "super_admin") lista.push("usuarios");
+  $("lista-modulos").innerHTML = lista.map(id => `
+    <div class="modulo" tabindex="0" data-modulo="${id}">
+      <div class="icono">${ICONOS[id]}</div>
+      <h3>${MODULOS[id].nombre}</h3>
+      <p>${MODULOS[id].texto}</p>
+      ${id === "egresos" ? "" : '<span class="pronto">En construcción</span>'}
+    </div>`).join("");
+  document.querySelectorAll("[data-modulo]").forEach(m => {
+    m.addEventListener("click", () => abrirModulo(m.dataset.modulo));
+    m.addEventListener("keydown", e => { if (e.key === "Enter") abrirModulo(m.dataset.modulo); });
+  });
+  mostrar("pantalla-panel");
+}));
+
+document.querySelectorAll("[data-ir]").forEach(b => b.addEventListener("click", () => mostrar(b.dataset.ir)));
+$("volver-panel").addEventListener("click", () => mostrar("pantalla-panel"));
+
+function abrirModulo(id){
+  $("titulo-modulo").textContent = MODULOS[id].nombre;
+  $("texto-volver").textContent = DIVISIONES[division].nombre;
+  mostrar("pantalla-modulo");
+  if (id === "egresos") modEgresos();
+  else $("cuerpo-modulo").innerHTML =
+    `<p class="bajada">Este módulo todavía está en construcción.</p>`;
+}
+
+// ===============================================================
+// MÓDULO: EGRESOS Y GASTOS
+// ===============================================================
+function modEgresos(){
+  $("cuerpo-modulo").innerHTML = `
+    <div class="filtro">
+      <div class="campo">
+        <label for="mes">Mes</label>
+        <input id="mes" type="month" value="${mesActual}">
+      </div>
+    </div>
+    <div class="cifras" id="cifras"></div>
+    <div id="alertas"></div>
+    <div class="pestanas">
+      <button class="pestana" data-p="ingresos">Ingresos</button>
+      <button class="pestana" data-p="egresos">Egresos</button>
+      <button class="pestana" data-p="deudas">Deudas</button>
+      <button class="pestana" data-p="resumen">Resumen</button>
+    </div>
+    <div id="contenido"></div>`;
+
+  $("mes").addEventListener("change", e => { mesActual = e.target.value; refrescar(); });
+  document.querySelectorAll(".pestana").forEach(p =>
+    p.addEventListener("click", () => { pestanaActual = p.dataset.p; refrescar(); }));
+  refrescar();
+}
+
+const rango = () => {
+  const desde = mesActual + "-01";
+  const [a,m] = mesActual.split("-").map(Number);
+  const hasta = new Date(a, m, 0).toISOString().slice(0,10);
+  return {desde, hasta};
+};
+
+async function refrescar(){
+  document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("viva", p.dataset.p === pestanaActual));
+  if (!conectado) {
+    $("cifras").innerHTML = "";
+    $("contenido").innerHTML = `<div class="tarjeta"><p class="vacio">Pega la anon key de Supabase para que este módulo cargue datos reales.</p></div>`;
+    return;
+  }
+  await pintarCifras();
+  if (pestanaActual === "ingresos") pintarIngresos();
+  else if (pestanaActual === "egresos") pintarEgresos();
+  else if (pestanaActual === "deudas") pintarDeudas();
+  else pintarResumen();
+}
+
+async function pintarCifras(){
+  const {desde} = rango();
+  const {data} = await sb.from("v_resumen_mensual").select("*").eq("mes", desde).maybeSingle();
+  const r = data || {ingresos:0, varios:0, egresos:0, comision:0, utilidad:0};
+  $("cifras").innerHTML = `
+    <div class="cifra"><span>INGRESOS</span><strong>${S(r.ingresos)}</strong></div>
+    <div class="cifra egre"><span>EGRESOS</span><strong>${S(r.egresos)}</strong></div>
+    <div class="cifra"><span>COMISIÓN 10%</span><strong>${S(r.comision)}</strong></div>
+    <div class="cifra util"><span>UTILIDAD</span><strong>${S(r.utilidad)}</strong></div>`;
+
+  const {data: pend} = await sb.from("v_renta_pendiente").select("*");
+  $("alertas").innerHTML = (pend && pend.length)
+    ? `<div class="alerta">Falta pagar la renta al propietario de ${pend.map(p => esc(p.propiedad)).join(", ")}.
+       ${pend.map(p => `<button onclick="pagarRenta('${esc(p.propiedad)}')">Registrar ${esc(p.propiedad)} · ${S(p.renta_propietario)}</button>`).join(" ")}</div>`
+    : "";
+}
+
+window.pagarRenta = async (propiedad) => {
+  const {error} = await sb.rpc("registrar_renta_dueno", {p_propiedad: propiedad});
+  if (error) alert("No se pudo registrar: " + error.message); else refrescar();
+};
+
+async function pintarIngresos(){
+  const {desde, hasta} = rango();
+  const {data} = await sb.from("ing_alquiler").select("*")
+    .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false});
+  $("contenido").innerHTML = `
+    <div class="tarjeta">
+      <h4>Registrar un pago</h4>
+      <div class="rejilla">
+        <div><label>Fecha</label><input id="i-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label>Propiedad</label><select id="i-prop">${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
+        <div><label>Habitación</label><input id="i-hab" placeholder="3"></div>
+        <div><label>Inquilino</label><input id="i-nom" placeholder="Nombre"></div>
+        <div><label>Renta</label><input id="i-renta" type="number" step="0.01" placeholder="1200"></div>
+        <div><label>Varios</label><input id="i-varios" type="number" step="0.01" placeholder="0"></div>
+        <div><label>Nota</label><input id="i-nota" placeholder="efectivo, yape…"></div>
+        <button class="primario" onclick="guardarIngreso()">Guardar</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h4>Pagos del mes · ${data?.length || 0}</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Fecha","Propiedad","Hab.","Inquilino","Renta","Varios","Comisión","Nota",""],
+        (data||[]).map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
+          esc(r.inquilino), S(r.renta), S(r.varios), S(r.comision), esc(r.nota||""),
+          `<button class="borrar" onclick="borrar('ing_alquiler',${r.id})">Eliminar</button>`], [4,5,6])}</div>
+    </div>`;
+}
+
+window.guardarIngreso = async () => {
+  const fila = {
+    fecha: $("i-fecha").value, propiedad: $("i-prop").value, habitacion: $("i-hab").value.trim(),
+    inquilino: $("i-nom").value.trim(), renta: +$("i-renta").value || 0,
+    varios: +$("i-varios").value || 0, nota: $("i-nota").value.trim() || null
+  };
+  if (!fila.habitacion || !fila.inquilino || !fila.renta) { alert("Falta habitación, inquilino o renta."); return; }
+  const {error} = await sb.from("ing_alquiler").insert(fila);
+  if (error) alert("No se guardó: " + error.message); else refrescar();
+};
+
+async function pintarEgresos(){
+  const {desde, hasta} = rango();
+  const {data} = await sb.from("egr_alquiler").select("*")
+    .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false});
+  const {data: porCat} = await sb.from("v_egresos_categoria").select("*").eq("mes", desde);
+  $("contenido").innerHTML = `
+    <div class="tarjeta">
+      <h4>Registrar un gasto</h4>
+      <div class="rejilla">
+        <div><label>Fecha</label><input id="e-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label>Propiedad</label><select id="e-prop"><option value="">—</option>${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
+        <div><label>Categoría</label><select id="e-cat">${CATEGORIAS.map(c=>`<option>${c}</option>`).join("")}</select></div>
+        <div><label>Monto</label><input id="e-monto" type="number" step="0.01" placeholder="150"></div>
+        <div><label>Quién pagó</label><input id="e-resp" placeholder="MAGALLI"></div>
+        <div><label>Descripción</label><input id="e-desc" placeholder="Materiales de limpieza"></div>
+        <button class="primario" onclick="guardarEgreso()">Guardar</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h4>Por categoría</h4>
+      <div class="tabla-scroll">${tabla(["Categoría","Movimientos","Total"],
+        (porCat||[]).map(c => [esc(c.categoria), c.movimientos, S(c.total)]), [2])}</div>
+    </div>
+    <div class="tarjeta">
+      <h4>Gastos del mes · ${data?.length || 0}</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
+        (data||[]).map(r => [r.fecha, esc(r.propiedad||"—"), `<span class="etiqueta">${esc(r.categoria)}</span>`,
+          S(r.monto), esc(r.responsable||""), esc(r.descripcion||""),
+          `<button class="borrar" onclick="borrar('egr_alquiler',${r.id})">Eliminar</button>`], [3])}</div>
+    </div>`;
+}
+
+window.guardarEgreso = async () => {
+  const fila = {
+    fecha: $("e-fecha").value, propiedad: $("e-prop").value || null, categoria: $("e-cat").value,
+    monto: +$("e-monto").value || 0, responsable: $("e-resp").value.trim().toUpperCase() || null,
+    descripcion: $("e-desc").value.trim() || null
+  };
+  if (!fila.monto) { alert("Falta el monto."); return; }
+  const {error} = await sb.from("egr_alquiler").insert(fila);
+  if (error) alert("No se guardó: " + error.message); else refrescar();
+};
+
+async function pintarDeudas(){
+  const {data} = await sb.from("deudas").select("*").order("saldada").order("fecha", {ascending:false});
+  $("contenido").innerHTML = `
+    <div class="tarjeta">
+      <h4>Anotar una deuda</h4>
+      <div class="rejilla">
+        <div><label>Inquilino</label><input id="d-nom" placeholder="Nombre"></div>
+        <div><label>Propiedad</label><select id="d-prop"><option value="">—</option>${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
+        <div><label>Habitación</label><input id="d-hab" placeholder="3"></div>
+        <div><label>Monto</label><input id="d-monto" type="number" step="0.01" placeholder="642"></div>
+        <div><label>Motivo</label><input id="d-motivo" placeholder="Saldo de julio"></div>
+        <button class="primario" onclick="guardarDeuda()">Guardar</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h4>Deudas</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Inquilino","Propiedad","Hab.","Monto","Desde","Motivo","Estado",""],
+        (data||[]).map(r => [esc(r.inquilino), esc(r.propiedad||"—"), esc(r.habitacion||""), S(r.monto), r.fecha,
+          esc(r.motivo||""), r.saldada ? "Saldada" : "Pendiente",
+          r.saldada ? "" : `<button class="borrar" onclick="saldar(${r.id})">Marcar saldada</button>`], [3])}</div>
+    </div>`;
+}
+
+window.guardarDeuda = async () => {
+  const fila = {inquilino: $("d-nom").value.trim(), propiedad: $("d-prop").value || null,
+    habitacion: $("d-hab").value.trim() || null, monto: +$("d-monto").value || 0,
+    motivo: $("d-motivo").value.trim() || null};
+  if (!fila.inquilino || !fila.monto) { alert("Falta inquilino o monto."); return; }
+  const {error} = await sb.from("deudas").insert(fila);
+  if (error) alert("No se guardó: " + error.message); else refrescar();
+};
+window.saldar = async (id) => {
+  const {error} = await sb.from("deudas").update({saldada:true, fecha_saldo:new Date().toISOString().slice(0,10)}).eq("id", id);
+  if (error) alert(error.message); else refrescar();
+};
+window.borrar = async (tabla, id) => {
+  if (!confirm("¿Eliminar este registro?")) return;
+  const {error} = await sb.from(tabla).delete().eq("id", id);
+  if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
+};
+
+async function pintarResumen(){
+  const {desde} = rango();
+  const [{data: meses}, {data: props}, {data: socios}, {data: deuda}] = await Promise.all([
+    sb.from("v_resumen_mensual").select("*").limit(12),
+    sb.from("v_por_propiedad").select("*").eq("mes", desde),
+    sb.from("v_reparto_socios").select("*").eq("mes", desde).maybeSingle(),
+    sb.from("v_deuda_abierta").select("*")
+  ]);
+  const s = socios || {magalli:0, matias:0};
+  $("contenido").innerHTML = `
+    <div class="tarjeta">
+      <h4>Reparto de comisión del mes</h4>
+      <div class="tabla-scroll">${tabla(["Socio","Monto"],
+        [["Magalli", S(s.magalli)], ["Matías", S(s.matias)]], [1])}</div>
+    </div>
+    <div class="tarjeta">
+      <h4>Por propiedad</h4>
+      <div class="tabla-scroll">${tabla(["Propiedad","Ingresos","Egresos","Margen"],
+        (props||[]).map(p => [esc(p.propiedad), S(p.ingresos), S(p.egresos), S(p.margen)], ), [1,2,3])}</div>
+    </div>
+    <div class="tarjeta">
+      <h4>Deuda viva</h4>
+      <div class="tabla-scroll">${tabla(["Inquilino","Propiedad","Debe","Desde"],
+        (deuda||[]).map(d => [esc(d.inquilino), esc(d.propiedad||"—"), S(d.debe), d.desde], ), [2])}</div>
+    </div>
+    <div class="tarjeta">
+      <h4>Últimos meses</h4>
+      <div class="tabla-scroll">${tabla(["Mes","Ingresos","Egresos","Comisión","Utilidad"],
+        (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision), S(m.utilidad)], ), [1,2,3,4])}</div>
+    </div>`;
+}
+
+function tabla(cabeceras, filas, numericas = []){
+  if (!filas.length) return `<p class="vacio">Todavía no hay registros aquí.</p>`;
+  const th = cabeceras.map((c,i) => `<th class="${numericas.includes(i)?'num':''}">${c}</th>`).join("");
+  const tr = filas.map(f => "<tr>" + f.map((c,i) =>
+    `<td class="${numericas.includes(i)?'num':''}">${c}</td>`).join("") + "</tr>").join("");
+  return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+
+// sesión abierta al recargar
+(async () => {
+  if (!conectado) return;
+  const {data:{session}} = await sb.auth.getSession();
+  if (!session) return;
+  const {data: perfil} = await sb.from("perfiles").select("nombre, rol, activo").eq("id", session.user.id).single();
+  if (perfil?.activo) abrirDivisiones(perfil);
+})();
 </script>
 </body>
 </html>
