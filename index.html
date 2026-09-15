@@ -1244,6 +1244,8 @@ let pestAlq = "inquilinos";
 let plegadas = new Set(["inquilino"]);   // la columna de inquilinos arranca plegada
 let filtroConcepto = "";
 let verInactivos = {inq:false, prop:false};
+let vistaPagos = "propiedad";
+let mesCumplimiento = new Date().toISOString().slice(0,7);
 let datos = {props:[], inq:[], pagos:[], cx:[], rec:[]};
 
 async function modAlquileres(){
@@ -1279,7 +1281,7 @@ async function refrescarAlq(){
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
   await cargarAlq();
   if (pestAlq === "inquilinos") pintarInquilinos();
-  else if (pestAlq === "pagos") pintarPagos();
+  else if (pestAlq === "pagos") vistaPagos === "propiedad" ? pintarPagos() : pintarCumplimiento();
   else if (pestAlq === "propiedades") pintarPropiedades();
   else pintarRecordatorios();
 }
@@ -1454,7 +1456,6 @@ function pintarPagos(){
   let cuerpo = "";
   datos.props.filter(pr => pr.activa).forEach(pr => {
     const suyos = datos.inq.filter(q => q.propiedad === pr.propiedad && q.activo);
-    cuerpo += `<tr class="grupo"><td colspan="7">${esc(pr.propiedad)} · ${suyos.length} inquilino(s)</td></tr>`;
 
     // fila propia de la casa: existe haya o no inquilinos
     const celdasCasa = RANURAS.map(n => {
@@ -1466,16 +1467,6 @@ function pintarPagos(){
     cuerpo += `<tr><td data-col="Propiedad" class="${plegada('propiedad')}">${esc(pr.propiedad)}</td>
       <td data-col="Inquilino" class="${plegada('inquilino')}">pago de la casa</td>${celdasCasa}</tr>`;
 
-    suyos.forEach(q => {
-      const celdas = RANURAS.map(n => {
-        const p = datos.pagos.find(x => x.inquilino_id === q.id && x.ranura === n);
-        if (!pasaFiltro(p)) return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}"></td>`;
-        const accion = `fichaPago(${q.id},${n})`;
-        return p ? celdaLlena(p, n, accion) : celdaVacia(n, accion);
-      }).join("");
-      cuerpo += `<tr><td data-col="Propiedad" class="${plegada('propiedad')}">${esc(q.propiedad)}</td>
-        <td data-col="Inquilino" class="${plegada('inquilino')}">${esc(q.nombre)}</td>${celdas}</tr>`;
-    });
   });
 
   $("cuerpo-alq").innerHTML = `
@@ -1487,8 +1478,11 @@ function pintarPagos(){
         </select></div>
     </div>
     <div class="tarjeta">
-      <h4>Pagos por propiedad</h4>
-      <p class="vacio" style="text-align:left;padding:0 0 10px">Haz clic en el título de una columna para plegarla o desplegarla.</p>
+      <div class="cabecera-tarjeta">
+        <h4>Pagos de la propiedad</h4>
+        <button class="secundario" onclick="vistaPagos='inquilino'; pintarCumplimiento()">Pagos de inquilino</button>
+      </div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">Los pagos fijos de cada casa. Haz clic en el título de una columna para plegarla.</p>
       <div class="tabla-scroll">
         ${datos.props.filter(p=>p.activa).length ? `<table class="tabla-tarjetas"><thead><tr>
           <th class="th-plegable ${plegada('propiedad')}" onclick="plegar('propiedad')">${titulo('propiedad','Propiedad')}</th>
@@ -1562,6 +1556,67 @@ window.fichaPago = (inquilinoId, ranura) => {
       return error ? error.message : null;
     } : null);
 };
+
+
+// ---------- pagos de inquilino: contrato vs registro real ----------
+async function pintarCumplimiento(){
+  const {data, error} = await sb.rpc("cumplimiento_mes", {p_mes: mesCumplimiento + "-01"});
+  if (error) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">${esc(error.message)}</p></div>`; return; }
+
+  const color = e => e === "a tiempo" ? "var(--verde)"
+                   : e === "con atraso" ? "var(--alerta)"
+                   : e === "vencido sin registrar" ? "var(--alerta)" : "var(--gris-claro)";
+
+  const porPropiedad = {};
+  (data||[]).forEach(r => (porPropiedad[r.propiedad] ||= []).push(r));
+
+  let cuerpo = "";
+  Object.entries(porPropiedad).forEach(([prop, filas]) => {
+    cuerpo += `<tr class="grupo"><td colspan="8">${esc(prop)} · ${filas.length} inquilino(s)</td></tr>`;
+    filas.forEach(r => {
+      cuerpo += `<tr>
+        <td data-col="Inquilino">${esc(r.inquilino)}</td>
+        <td data-col="Hab.">${esc(r.habitacion||"—")}</td>
+        <td data-col="Según contrato">día ${r.dia_pago||"—"} · ${r.fecha_esperada.slice(8,10)}/${r.fecha_esperada.slice(5,7)}</td>
+        <td data-col="Se registró">${r.fecha_pago ? r.fecha_pago.slice(8,10)+"/"+r.fecha_pago.slice(5,7) : "—"}</td>
+        <td data-col="Atraso" class="num">${r.dias_atraso === null ? "—" : (r.dias_atraso === 0 ? "sin atraso" : r.dias_atraso + " día(s)")}</td>
+        <td data-col="Esperado" class="num">${S(r.monto_esperado)}</td>
+        <td data-col="Pagado" class="num">${S(r.monto_pagado)}</td>
+        <td data-col="Estado"><span style="color:${color(r.estado)}">${esc(r.estado)}</span></td>
+      </tr>`;
+    });
+  });
+
+  const conAtraso = (data||[]).filter(r => r.dias_atraso > 0).length;
+  const aTiempo = (data||[]).filter(r => r.estado === "a tiempo").length;
+  const sinPagar = (data||[]).filter(r => !r.fecha_pago).length;
+
+  $("cuerpo-alq").innerHTML = `
+    <div class="filtro">
+      <div class="campo"><label>Mes</label>
+        <input type="month" value="${mesCumplimiento}" onchange="mesCumplimiento=this.value; pintarCumplimiento()"></div>
+    </div>
+    <div class="cifras">
+      <div class="cifra util"><span>A TIEMPO</span><strong>${aTiempo}</strong></div>
+      <div class="cifra egre"><span>CON ATRASO</span><strong>${conAtraso}</strong></div>
+      <div class="cifra"><span>SIN REGISTRAR</span><strong>${sinPagar}</strong></div>
+    </div>
+    <div class="tarjeta">
+      <div class="cabecera-tarjeta">
+        <h4>Pagos de inquilino</h4>
+        <button class="secundario" onclick="vistaPagos='propiedad'; pintarPagos()">Pagos de la propiedad</button>
+      </div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">
+        La fecha de la izquierda sale del contrato. La de la derecha, del día en que registraste el pago en Ingresos.</p>
+      <div class="tabla-scroll">
+        ${cuerpo ? `<table class="tabla-tarjetas"><thead><tr>
+          <th>Inquilino</th><th>Hab.</th><th>Según contrato</th><th>Se registró</th>
+          <th class="num">Atraso</th><th class="num">Esperado</th><th class="num">Pagado</th><th>Estado</th>
+        </tr></thead><tbody>${cuerpo}</tbody></table>`
+        : `<p class="vacio">Ningún inquilino con contrato vigente en este mes.</p>`}
+      </div>
+    </div>`;
+}
 
 // ---------- pestaña propiedades ----------
 function pintarPropiedades(){
