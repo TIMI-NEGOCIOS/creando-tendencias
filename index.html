@@ -219,6 +219,12 @@
     .tabla-tarjetas tr.grupo td{justify-content:flex-start}
     .celda-pago .lapiz{opacity:1;position:static;margin-left:auto}
   }
+  /* marca de auditoría */
+  td.audit{cursor:pointer;transition:background .2s;border-radius:8px}
+  td.audit:hover{background:#FBF0F5}
+  td.audit.marcado{background:#F7D3E0;color:#7A2544}
+  td.audit.marcado::after{content:" ✓";color:#B4479B}
+
   footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
     display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
@@ -606,7 +612,10 @@ async function pintarIngresos(){
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Hab.","Inquilino","Renta","Varios","Comisión","Nota",""],
         (data||[]).map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
-          esc(r.inquilino), S(r.renta), S(r.varios), S(r.comision), esc(r.nota||""),
+          esc(r.inquilino), S(r.renta), S(r.varios),
+          {html: S(r.comision), clase: "audit" + (r.auditado ? " marcado" : ""),
+           click: `auditar('ing_alquiler',${r.id},${!r.auditado})`},
+          esc(r.nota||""),
           `<button class="borrar" onclick="borrar('ing_alquiler',${r.id})">Eliminar</button>`]), [4,5,6])}</div>
     </div>`;
 }
@@ -650,7 +659,9 @@ async function pintarEgresos(){
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
         (data||[]).map(r => [r.fecha, esc(r.propiedad||"—"), `<span class="etiqueta">${esc(r.categoria)}</span>`,
-          S(r.monto), esc(r.responsable||""), esc(r.descripcion||""),
+          {html: S(r.monto), clase: "audit" + (r.auditado ? " marcado" : ""),
+           click: `auditar('egr_alquiler',${r.id},${!r.auditado})`},
+          esc(r.responsable||""), esc(r.descripcion||""),
           `<button class="borrar" onclick="borrar('egr_alquiler',${r.id})">Eliminar</button>`]), [3])}</div>
     </div>`;
 }
@@ -743,10 +754,24 @@ async function pintarResumen(){
 function tabla(cabeceras, filas, numericas = []){
   if (!filas.length) return `<p class="vacio">Todavía no hay registros aquí.</p>`;
   const th = cabeceras.map((c,i) => `<th class="${numericas.includes(i)?'num':''}">${c}</th>`).join("");
-  const tr = filas.map(f => "<tr>" + f.map((c,i) =>
-    `<td class="${numericas.includes(i)?'num':''}">${c}</td>`).join("") + "</tr>").join("");
+  const celda = (c, i) => {
+    const num = numericas.includes(i) ? "num" : "";
+    if (c && typeof c === "object" && "html" in c)
+      return `<td class="${num} ${c.clase||""}" ${c.click ? `onclick="${c.click}"` : ""}
+        title="Clic para marcar como revisado">${c.html}</td>`;
+    return `<td class="${num}">${c}</td>`;
+  };
+  const tr = filas.map(f => "<tr>" + f.map(celda).join("") + "</tr>").join("");
   return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
 }
+
+window.auditar = async (tabla, id, valor) => {
+  const {error} = await sb.from(tabla).update({
+    auditado: valor,
+    auditado_en: valor ? new Date().toISOString() : null
+  }).eq("id", id);
+  if (error) alert("No se pudo marcar: " + error.message); else refrescar();
+};
 
 
 // ===============================================================
