@@ -536,7 +536,7 @@ document.querySelectorAll(".division").forEach(b => b.addEventListener("click", 
       <div class="icono">${ICONOS[id]}</div>
       <h3>${MODULOS[id].nombre}</h3>
       <p>${MODULOS[id].texto}</p>
-      ${id === "egresos" ? "" : '<span class="pronto">En construcción</span>'}
+      ${["egresos","alquileres"].includes(id) ? "" : '<span class="pronto">En construcción</span>'}
     </div>`).join("");
   document.querySelectorAll("[data-modulo]").forEach(m => {
     m.addEventListener("click", () => abrirModulo(m.dataset.modulo));
@@ -553,7 +553,7 @@ function abrirModulo(id){
   $("texto-volver").textContent = DIVISIONES[division].nombre;
   mostrar("pantalla-modulo");
   $("flotante").classList.add("oculto");
-  $("pantalla-modulo").classList.toggle("lila", id === "alquileres");
+  $("pantalla-modulo").classList.toggle("lila", id === "alquileres" || id === "egresos");
   if (id === "egresos") modEgresos();
   else if (id === "alquileres") modAlquileres();
   else $("cuerpo-modulo").innerHTML =
