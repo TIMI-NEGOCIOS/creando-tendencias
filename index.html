@@ -6,138 +6,188 @@
 <title>Creando Tendencias</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --papel:#FCFBFD;
-    --tinta:#2E2833;
-    --lila:#6E5A93;
-    --lila-velo:#EDE6F5;
-    --rosa:#E3AEBF;
-    --rosa-velo:#F8EDF1;
-    --linea:#DDD6E4;
-    --medida:1180px;
+    --papel:#FDFCFD;
+    --tinta:#2B2430;
+    --morado:#8E2C7B;
+    --morado-hondo:#6A1F5C;
+    --magenta:#B4479B;
+    --lila:#C08BD0;
+    --lila-velo:#F5EDF7;
+    --rosa-velo:#FBF0F5;
+    --agua:#4FBBD4;
+    --agua-velo:#EAF7FA;
+    --linea:#E6DEEA;
+    --gris:#6E6678;
+    --gris-claro:#9B93A5;
+    --medida:1120px;
+    --curva:20px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-text-size-adjust:100%}
   body{
-    font-family:'Jost',system-ui,sans-serif;
-    font-weight:300;
-    background:var(--papel);
-    color:var(--tinta);
-    min-height:100vh;
-    display:flex;flex-direction:column;
-    line-height:1.55;
+    font-family:'Jost',system-ui,sans-serif;font-weight:300;
+    background:var(--papel);color:var(--tinta);
+    min-height:100vh;display:flex;flex-direction:column;line-height:1.55;
   }
-  a{color:inherit}
   button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
 
-  /* ---- estructura ---- */
-  .marco{width:100%;max-width:var(--medida);margin:0 auto;padding:0 32px;flex:1;display:flex;flex-direction:column}
-  header{padding:40px 0 0;display:flex;align-items:baseline;gap:18px}
-  .marca{font-size:15px;letter-spacing:.24em;font-weight:400}
-  .marca span{color:var(--lila)}
-  .sello{font-size:12px;color:#8C8496;letter-spacing:.08em}
+  .marco{width:100%;max-width:var(--medida);margin:0 auto;padding:0 28px;flex:1;display:flex;flex-direction:column}
 
-  main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:72px 0}
-  h1{font-size:clamp(34px,6vw,58px);font-weight:200;letter-spacing:-.015em;line-height:1.05}
-  .bajada{margin-top:14px;max-width:44ch;color:#6F6878;font-size:16px}
+  /* ---------- cabecera ---------- */
+  header{padding:34px 0 0;display:flex;align-items:center;gap:14px}
+  .isotipo{width:34px;height:34px;flex:none}
+  .marca{font-family:'Cormorant Garamond',serif;font-size:21px;letter-spacing:.12em;color:var(--morado-hondo)}
+  .sello{font-size:12px;color:var(--gris-claro);letter-spacing:.1em;margin-left:auto}
 
-  /* ---- divisiones ---- */
-  .divisiones{margin-top:56px;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--linea);border-left:1px solid var(--linea)}
+  main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:56px 0}
+  h1{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,6vw,58px);font-weight:400;letter-spacing:.01em;line-height:1.08}
+  .bajada{margin-top:12px;max-width:46ch;color:var(--gris);font-size:16px}
+
+  /* ---------- divisiones ---------- */
+  .divisiones{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
   .division{
-    border-right:1px solid var(--linea);border-bottom:1px solid var(--linea);
-    padding:36px 32px 32px;text-align:left;display:flex;flex-direction:column;gap:26px;
-    background:transparent;transition:background .35s ease;position:relative;min-height:290px;
+    border:1px solid var(--linea);border-radius:var(--curva);background:#fff;
+    padding:36px 30px 30px;display:flex;flex-direction:column;align-items:center;gap:20px;
+    text-align:center;min-height:330px;position:relative;overflow:hidden;
+    transition:transform .3s ease, box-shadow .3s ease, border-color .3s ease;
   }
-  .division:hover,.division:focus-visible{background:var(--lila-velo);outline:none}
-  .division.rosa:hover,.division.rosa:focus-visible{background:var(--rosa-velo)}
-  .division:focus-visible{box-shadow:inset 0 0 0 1px var(--lila)}
-  .plano{width:100%;height:118px;color:var(--lila);opacity:.85}
-  .division.rosa .plano{color:var(--rosa)}
-  .division h2{font-size:26px;font-weight:300;letter-spacing:-.01em}
-  .division p{font-size:14.5px;color:#6F6878;margin-top:6px}
-  .entrar{margin-top:auto;font-size:13px;letter-spacing:.14em;color:var(--lila);border-bottom:1px solid currentColor;align-self:flex-start;padding-bottom:3px}
+  .division::before{
+    content:"";position:absolute;inset:0 0 auto;height:3px;
+    background:linear-gradient(90deg,var(--morado-hondo),var(--magenta),var(--lila));
+    opacity:0;transition:opacity .3s ease;
+  }
+  .division.agua::before{background:linear-gradient(90deg,var(--magenta),var(--lila),var(--agua))}
+  .division:hover,.division:focus-visible{
+    transform:translateY(-4px);border-color:transparent;outline:none;
+    box-shadow:0 14px 34px -18px rgba(110,32,92,.45), 0 0 0 1px var(--lila);
+  }
+  .division:hover::before,.division:focus-visible::before{opacity:1}
 
-  /* ---- acceso ---- */
-  .acceso{max-width:380px}
-  .volver{font-size:13px;color:#8C8496;margin-bottom:28px;display:inline-block;border-bottom:1px solid var(--linea);padding-bottom:2px}
-  .campo{margin-top:22px}
-  label{display:block;font-size:13px;color:#6F6878;margin-bottom:7px}
+  .emblema{width:132px;height:132px;display:grid;place-items:center}
+  .emblema svg{width:100%;height:100%}
+  .division h2{font-family:'Cormorant Garamond',serif;font-size:29px;font-weight:500;color:var(--morado-hondo)}
+  .division .lema{font-size:12.5px;letter-spacing:.16em;color:var(--agua);margin-top:4px}
+  .division p{font-size:14.5px;color:var(--gris);margin-top:10px;max-width:30ch}
+  .entrar{
+    margin-top:auto;font-size:13px;letter-spacing:.14em;color:#fff;
+    background:var(--morado);border-radius:999px;padding:9px 26px;transition:background .3s ease;
+  }
+  .division:hover .entrar{background:var(--morado-hondo)}
+  .division.agua .entrar{background:var(--magenta)}
+  .division.agua:hover .entrar{background:var(--morado)}
+
+  /* ---------- acceso ---------- */
+  .acceso{max-width:400px;width:100%}
+  .volver{font-size:13px;color:var(--gris-claro);margin-bottom:24px;display:inline-flex;gap:7px;align-items:center}
+  .volver:hover{color:var(--morado)}
+  .campo{margin-top:20px}
+  label{display:block;font-size:13px;color:var(--gris);margin-bottom:7px}
   input{
-    width:100%;padding:11px 2px;font:inherit;font-size:16px;
-    border:none;border-bottom:1px solid var(--linea);background:transparent;color:var(--tinta);
+    width:100%;padding:12px 14px;font:inherit;font-size:16px;color:var(--tinta);
+    border:1px solid var(--linea);border-radius:12px;background:#fff;transition:border-color .25s ease, box-shadow .25s ease;
   }
-  input:focus{outline:none;border-bottom-color:var(--lila)}
+  input:focus{outline:none;border-color:var(--lila);box-shadow:0 0 0 3px var(--lila-velo)}
   .primario{
-    margin-top:34px;width:100%;padding:13px;background:var(--lila);color:#fff;
-    font-size:14px;letter-spacing:.1em;transition:background .25s ease;
+    margin-top:30px;width:100%;padding:14px;border-radius:999px;color:#fff;font-size:14px;letter-spacing:.1em;
+    background:linear-gradient(100deg,var(--morado-hondo),var(--magenta));
+    transition:filter .25s ease, transform .2s ease;
   }
-  .primario:hover{background:#584778}
-  .primario:disabled{opacity:.5;cursor:default}
-  .aviso{margin-top:18px;font-size:14px;color:#A24B67;min-height:20px}
+  .primario:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .primario:disabled{opacity:.5;transform:none;cursor:default}
+  .aviso{margin-top:16px;font-size:14px;color:#A8375F;min-height:20px}
 
-  /* ---- panel ---- */
-  .modulos{margin-top:44px;display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea);grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-  .modulo{background:var(--papel);padding:28px;min-height:150px;display:flex;flex-direction:column;gap:8px}
-  .modulo h3{font-size:19px;font-weight:400}
-  .modulo p{font-size:14px;color:#6F6878}
-  .modulo .pronto{margin-top:auto;font-size:12px;color:#9B93A5;letter-spacing:.08em}
-  .quien{display:flex;gap:14px;align-items:baseline;font-size:14px;color:#6F6878;margin-top:10px}
-  .rol{color:var(--lila)}
-  .salir{font-size:13px;color:#8C8496;border-bottom:1px solid var(--linea)}
+  /* ---------- panel ---------- */
+  .quien{display:flex;gap:14px;align-items:center;font-size:14px;color:var(--gris);margin-top:12px;flex-wrap:wrap}
+  .insignia{background:var(--lila-velo);color:var(--morado-hondo);border-radius:999px;padding:4px 14px;font-size:12.5px;letter-spacing:.06em}
+  .salir{font-size:13px;color:var(--gris-claro)}
+  .salir:hover{color:var(--morado)}
+  .modulos{margin-top:36px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}
+  .modulo{
+    border:1px solid var(--linea);border-radius:var(--curva);background:#fff;
+    padding:32px 22px 26px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-height:210px;
+    transition:transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+  }
+  .modulo:hover,.modulo:focus-visible{
+    transform:translateY(-4px);border-color:transparent;outline:none;
+    box-shadow:0 14px 30px -18px rgba(110,32,92,.4), 0 0 0 1px var(--lila);
+  }
+  .icono{
+    width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+    background:var(--lila-velo);color:var(--morado);transition:background .3s ease, color .3s ease;
+  }
+  .modulo:hover .icono{background:var(--agua-velo);color:var(--agua)}
+  .icono svg{width:28px;height:28px}
+  .modulo h3{font-size:18.5px;font-weight:400;color:var(--morado-hondo)}
+  .modulo p{font-size:13.5px;color:var(--gris);max-width:26ch}
+  .pronto{margin-top:auto;font-size:11.5px;color:var(--gris-claro);letter-spacing:.1em}
 
-  footer{padding:26px 0 34px;border-top:1px solid var(--linea);font-size:12.5px;color:#9B93A5;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-
+  footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
-  @media (max-width:720px){
-    .marco{padding:0 20px}
-    .divisiones{grid-template-columns:1fr}
-    main{padding:48px 0}
-  }
+  @media (max-width:640px){.marco{padding:0 18px}main{padding:40px 0}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+
+<!-- Isotipo reutilizable: casa con trazos en degradé y ventana agua -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="deg" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#C08BD0"/><stop offset="55%" stop-color="#B4479B"/><stop offset="100%" stop-color="#6A1F5C"/>
+    </linearGradient>
+    <symbol id="casa" viewBox="0 0 200 150">
+      <path d="M96 10 8 132h24L96 40z" fill="url(#deg)" opacity=".35"/>
+      <path d="M118 10 30 132h24l64-92z" fill="url(#deg)" opacity=".6"/>
+      <path d="M140 10 52 132h132V10z" fill="url(#deg)"/>
+      <path d="M150 62h18v70h-18z" fill="#6A1F5C"/>
+      <rect x="96" y="60" width="34" height="34" rx="3" fill="#4FBBD4"/>
+      <path d="M113 60v34M96 77h34" stroke="#FDFCFD" stroke-width="3"/>
+    </symbol>
+  </defs>
+</svg>
+
 <div class="marco">
 
   <header>
-    <div class="marca">CREANDO <span>TENDENCIAS</span></div>
-    <div class="sello">Sistema operativo interno</div>
+    <svg class="isotipo" viewBox="0 0 200 150"><use href="#casa"/></svg>
+    <div class="marca">CREANDO TENDENCIAS</div>
+    <div class="sello">Sistema interno</div>
   </header>
 
   <main>
 
-    <!-- ============ 1. DIVISIONES ============ -->
+    <!-- ===== 1. DIVISIONES ===== -->
     <section id="pantalla-divisiones">
       <h1>Escoge tu división</h1>
       <p class="bajada">Cada división abre sus propios módulos. Tu acceso depende del rol que tengas asignado.</p>
 
       <div class="divisiones">
         <button class="division" data-division="tendencias">
-          <svg class="plano" viewBox="0 0 220 118" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
-            <rect x="12" y="20" width="84" height="78"/>
-            <path d="M12 46h84M12 72h84M54 20v78"/>
-            <rect x="124" y="20" width="84" height="34"/>
-            <rect x="124" y="64" width="84" height="34"/>
-            <circle cx="166" cy="37" r="7"/>
-          </svg>
+          <div class="emblema"><svg viewBox="0 0 200 150"><use href="#casa"/></svg></div>
           <div>
             <h2>Creando Tendencias</h2>
+            <div class="lema">PROYECTA · DISEÑA · DECORA</div>
             <p>Clientes, stock y almacén.</p>
           </div>
           <span class="entrar">Entrar</span>
         </button>
 
-        <button class="division rosa" data-division="hogares">
-          <svg class="plano" viewBox="0 0 220 118" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
-            <path d="M14 98V34l50-24 50 24v64"/>
-            <path d="M64 98V62h50M114 62h92v36H14"/>
-            <path d="M150 62v36M178 62v36"/>
-            <path d="M34 62h20v20H34z"/>
-          </svg>
+        <button class="division agua" data-division="hogares">
+          <div class="emblema">
+            <svg viewBox="0 0 200 150" fill="none" stroke="url(#deg)" stroke-width="5" stroke-linejoin="round">
+              <path d="M30 132V62l70-46 70 46v70z"/>
+              <path d="M30 132h140"/>
+              <rect x="78" y="82" width="44" height="50" rx="3"/>
+              <circle cx="100" cy="60" r="11" stroke="#4FBBD4"/>
+              <path d="M100 71v14" stroke="#4FBBD4"/>
+            </svg>
+          </div>
           <div>
             <h2>Creando Hogares</h2>
+            <div class="lema">ADMINISTRA · ALQUILA · COBRA</div>
             <p>Alquileres, contratos y pagos.</p>
           </div>
           <span class="entrar">Entrar</span>
@@ -145,11 +195,11 @@
       </div>
     </section>
 
-    <!-- ============ 2. ACCESO ============ -->
+    <!-- ===== 2. ACCESO ===== -->
     <section id="pantalla-acceso" class="acceso oculto">
-      <button class="volver" data-volver>Volver a divisiones</button>
+      <button class="volver" data-volver>← Volver a divisiones</button>
       <h1 id="titulo-acceso">Acceso</h1>
-      <p class="bajada" id="sub-acceso"></p>
+      <p class="bajada">Ingresa con tu correo y contraseña.</p>
 
       <div class="campo">
         <label for="email">Correo</label>
@@ -163,12 +213,12 @@
       <p class="aviso" id="aviso"></p>
     </section>
 
-    <!-- ============ 3. PANEL ============ -->
+    <!-- ===== 3. PANEL ===== -->
     <section id="pantalla-panel" class="oculto">
       <h1 id="titulo-panel">Panel</h1>
       <div class="quien">
         <span id="quien-nombre"></span>
-        <span class="rol" id="quien-rol"></span>
+        <span class="insignia" id="quien-rol"></span>
         <button class="salir" id="btn-salir">Cerrar sesión</button>
       </div>
       <div class="modulos" id="lista-modulos"></div>
@@ -177,7 +227,7 @@
   </main>
 
   <footer>
-    <span>Creando Tendencias · Lima, Perú</span>
+    <span>Performancia en la Industria SAC · Lima, Perú</span>
     <span id="estado-conexion">Modo demostración</span>
   </footer>
 </div>
@@ -185,28 +235,32 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ---------------------------------------------------------------
-// CONFIGURACIÓN — pegar los datos de Supabase > Project Settings > API
+// CONFIGURACIÓN — falta pegar la anon key (Project Settings > API)
 // ---------------------------------------------------------------
-const SUPABASE_URL  = "TU_SUPABASE_URL";
+const SUPABASE_URL  = "https://htbtuebxjubxibbtewqn.supabase.co";
 const SUPABASE_ANON = "TU_SUPABASE_ANON_KEY";
 
-const conectado = !SUPABASE_URL.startsWith("TU_");
+const conectado = !SUPABASE_ANON.startsWith("TU_");
 const sb = conectado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 if (conectado) document.getElementById("estado-conexion").textContent = "Conectado a Supabase";
 
-const DIVISIONES = {
-  tendencias: { nombre: "Creando Tendencias", modulos: ["clientes", "almacen"] },
-  hogares:    { nombre: "Creando Hogares",    modulos: ["alquileres"] }
+const ICONOS = {
+  clientes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M18 14.2a3.5 3.5 0 0 1 2.5 3.3V19M16.5 4.3a3.5 3.5 0 0 1 0 6.4"/></svg>',
+  almacen:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5V20H3z"/><path d="M8 20v-6h8v6"/><path d="M8 14h8"/><path d="M12 14v6"/></svg>',
+  alquileres:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10l8-6 8 6v10z"/><path d="M4 20h16"/><circle cx="12" cy="12.5" r="2"/><path d="M12 14.5V18"/><path d="M12 16.5h1.8"/></svg>',
+  usuarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.7 7.5 9.5 4.4-1.8 7.5-5.3 7.5-9.5V6z"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8.6 16.5a3.8 3.8 0 0 1 6.8 0"/></svg>'
 };
 const MODULOS = {
-  clientes:   { nombre: "Clientes",        texto: "Directorio, datos de contacto e historial." },
-  almacen:    { nombre: "Stock y almacén", texto: "Productos, entradas, salidas y stock actual." },
-  alquileres: { nombre: "Alquileres",      texto: "Propiedades, habitaciones, contratos y pagos." }
+  clientes:  { nombre:"Clientes",        texto:"Directorio, contacto e historial." },
+  almacen:   { nombre:"Stock y almacén", texto:"Productos, entradas, salidas y stock." },
+  alquileres:{ nombre:"Alquileres",      texto:"Propiedades, contratos y pagos." },
+  usuarios:  { nombre:"Usuarios y permisos", texto:"Altas, roles y límites de acceso." }
 };
-const ROLES = {
-  super_admin: "Super administradora",
-  admin: "Administradora", staff: "Staff", usuario: "Usuario", cliente: "Cliente"
+const DIVISIONES = {
+  tendencias:{ nombre:"Creando Tendencias", modulos:["clientes","almacen"] },
+  hogares:   { nombre:"Creando Hogares",    modulos:["alquileres"] }
 };
+const ROLES = { super_admin:"Super administradora", admin:"Administradora", staff:"Staff", usuario:"Usuario", cliente:"Cliente" };
 
 let division = null;
 const $ = id => document.getElementById(id);
@@ -216,12 +270,10 @@ const mostrar = id => ["pantalla-divisiones","pantalla-acceso","pantalla-panel"]
 document.querySelectorAll(".division").forEach(b => b.addEventListener("click", () => {
   division = b.dataset.division;
   $("titulo-acceso").textContent = DIVISIONES[division].nombre;
-  $("sub-acceso").textContent = "Ingresa con tu correo y contraseña.";
   $("aviso").textContent = "";
   mostrar("pantalla-acceso");
   $("email").focus();
 }));
-
 document.querySelectorAll("[data-volver]").forEach(b =>
   b.addEventListener("click", () => mostrar("pantalla-divisiones")));
 
@@ -229,31 +281,21 @@ $("btn-entrar").addEventListener("click", entrar);
 $("clave").addEventListener("keydown", e => { if (e.key === "Enter") entrar(); });
 
 async function entrar(){
-  const email = $("email").value.trim();
-  const clave = $("clave").value;
-  const aviso = $("aviso");
+  const email = $("email").value.trim(), clave = $("clave").value, aviso = $("aviso");
   aviso.textContent = "";
-
   if (!email || !clave) { aviso.textContent = "Falta el correo o la contraseña."; return; }
 
-  if (!conectado) {
-    abrirPanel({ nombre: email.split("@")[0], rol: "super_admin" });
-    return;
-  }
+  if (!conectado) { abrirPanel({ nombre: email.split("@")[0], rol: "super_admin" }); return; }
 
   $("btn-entrar").disabled = true;
   const { data, error } = await sb.auth.signInWithPassword({ email, password: clave });
   $("btn-entrar").disabled = false;
-
   if (error) { aviso.textContent = "Correo o contraseña incorrectos."; return; }
 
-  const { data: perfil } = await sb.from("perfiles")
-    .select("nombre, rol, activo").eq("id", data.user.id).single();
-
+  const { data: perfil } = await sb.from("perfiles").select("nombre, rol, activo").eq("id", data.user.id).single();
   if (!perfil || !perfil.activo) {
     aviso.textContent = "Esta cuenta está desactivada. Habla con una super administradora.";
-    await sb.auth.signOut();
-    return;
+    await sb.auth.signOut(); return;
   }
   abrirPanel(perfil);
 }
@@ -265,10 +307,10 @@ function abrirPanel(perfil){
 
   const lista = DIVISIONES[division].modulos.slice();
   if (perfil.rol === "super_admin") lista.push("usuarios");
-  MODULOS.usuarios = { nombre: "Usuarios y permisos", texto: "Altas, roles y límites de acceso." };
 
   $("lista-modulos").innerHTML = lista.map(id => `
-    <div class="modulo">
+    <div class="modulo" tabindex="0">
+      <div class="icono">${ICONOS[id]}</div>
       <h3>${MODULOS[id].nombre}</h3>
       <p>${MODULOS[id].texto}</p>
       <span class="pronto">En construcción</span>
