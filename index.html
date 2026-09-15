@@ -116,7 +116,7 @@
   .rejilla .primario{margin-top:0;padding:12px 20px;width:auto}
   table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
   th{text-align:left;font-weight:400;font-size:12px;letter-spacing:.08em;color:var(--gris-claro);padding:10px 12px;border-bottom:1px solid var(--linea)}
-  td{padding:11px 12px;border-bottom:1px solid #F2EDF4;color:var(--tinta)}
+  td{padding:11px 12px;border-bottom:1px solid #F2EDF4;color:var(--tinta);vertical-align:middle}
   tr:last-child td{border-bottom:none}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   .vacio{padding:26px 12px;color:var(--gris-claro);font-size:14px;text-align:center}
@@ -1310,7 +1310,9 @@ function pintarInquilinos(){
       <td data-col="Contrato">${q.contrato_inicio||"—"} → ${q.contrato_fin||"—"}</td>
       <td data-col="Método">${esc(q.metodo_pago||"—")}</td>
       <td data-col="Mascotas">${esc(q.mascotas||"—")}</td>
-      <td data-col="Acuerdos">${esc(q.acuerdos||"—")}</td>
+      <td data-col="Acuerdos">${q.acuerdos
+        ? `<button class="secundario" style="padding:5px 16px;font-size:12px" onclick="verAcuerdo(${q.id})">VIEW</button>`
+        : "—"}</td>
     </tr>`).join("");
 
   $("cuerpo-alq").innerHTML = `
@@ -1332,6 +1334,14 @@ function pintarInquilinos(){
       </div>
     </div>`;
 }
+
+window.verAcuerdo = async (id) => {
+  const {data: q} = await sb.from("inquilinos").select("nombre, propiedad, habitacion, acuerdos").eq("id", id).single();
+  abrirFicha(`Acuerdos particulares · ${q.nombre}`, `
+    <p class="vacio" style="text-align:left;padding:0 0 12px">${esc(q.propiedad)} · habitación ${esc(q.habitacion||"—")}</p>
+    <textarea readonly style="min-height:220px;font-size:13.5px;line-height:1.6">${esc(q.acuerdos||"")}</textarea>`,
+    async () => null);
+};
 
 window.verContrato = async (id) => {
   const {data: q} = await sb.from("inquilinos").select("nombre, contrato_texto").eq("id", id).single();
