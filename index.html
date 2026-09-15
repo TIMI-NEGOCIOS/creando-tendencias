@@ -299,10 +299,26 @@ async function entrar(){
   $("btn-entrar").disabled = true;
   const {data, error} = await sb.auth.signInWithPassword({email, password: clave});
   $("btn-entrar").disabled = false;
-  if (error) { $("aviso").textContent = "Correo o contraseña incorrectos."; return; }
+  if (error) {
+    console.error("Supabase auth:", error);
+    $("aviso").textContent = error.message === "Invalid login credentials"
+      ? "Correo o contraseña incorrectos."
+      : "No se pudo entrar: " + error.message;
+    return;
+  }
 
-  const {data: perfil} = await sb.from("perfiles").select("nombre, rol, activo").eq("id", data.user.id).single();
-  if (!perfil || !perfil.activo) {
+  const {data: perfil, error: errPerfil} =
+    await sb.from("perfiles").select("nombre, rol, activo").eq("id", data.user.id).maybeSingle();
+  if (errPerfil) {
+    console.error("Supabase perfiles:", errPerfil);
+    $("aviso").textContent = "Entraste, pero no se pudo leer tu perfil: " + errPerfil.message;
+    return;
+  }
+  if (!perfil) {
+    $("aviso").textContent = "Tu usuario existe en Supabase pero no tiene perfil. Falta correr el schema.";
+    return;
+  }
+  if (!perfil.activo) {
     $("aviso").textContent = "Esta cuenta está desactivada. Habla con una super administradora.";
     await sb.auth.signOut(); return;
   }
@@ -448,7 +464,7 @@ async function pintarIngresos(){
         ["Fecha","Propiedad","Hab.","Inquilino","Renta","Varios","Comisión","Nota",""],
         (data||[]).map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
           esc(r.inquilino), S(r.renta), S(r.varios), S(r.comision), esc(r.nota||""),
-          `<button class="borrar" onclick="borrar('ing_alquiler',${r.id})">Eliminar</button>`], [4,5,6])}</div>
+          `<button class="borrar" onclick="borrar('ing_alquiler',${r.id})">Eliminar</button>`]), [4,5,6])}</div>
     </div>`;
 }
 
@@ -492,7 +508,7 @@ async function pintarEgresos(){
         ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
         (data||[]).map(r => [r.fecha, esc(r.propiedad||"—"), `<span class="etiqueta">${esc(r.categoria)}</span>`,
           S(r.monto), esc(r.responsable||""), esc(r.descripcion||""),
-          `<button class="borrar" onclick="borrar('egr_alquiler',${r.id})">Eliminar</button>`], [3])}</div>
+          `<button class="borrar" onclick="borrar('egr_alquiler',${r.id})">Eliminar</button>`]), [3])}</div>
     </div>`;
 }
 
@@ -527,7 +543,7 @@ async function pintarDeudas(){
         ["Inquilino","Propiedad","Hab.","Monto","Desde","Motivo","Estado",""],
         (data||[]).map(r => [esc(r.inquilino), esc(r.propiedad||"—"), esc(r.habitacion||""), S(r.monto), r.fecha,
           esc(r.motivo||""), r.saldada ? "Saldada" : "Pendiente",
-          r.saldada ? "" : `<button class="borrar" onclick="saldar(${r.id})">Marcar saldada</button>`], [3])}</div>
+          r.saldada ? "" : `<button class="borrar" onclick="saldar(${r.id})">Marcar saldada</button>`]), [3])}</div>
     </div>`;
 }
 
@@ -567,17 +583,17 @@ async function pintarResumen(){
     <div class="tarjeta">
       <h4>Por propiedad</h4>
       <div class="tabla-scroll">${tabla(["Propiedad","Ingresos","Egresos","Margen"],
-        (props||[]).map(p => [esc(p.propiedad), S(p.ingresos), S(p.egresos), S(p.margen)], ), [1,2,3])}</div>
+        (props||[]).map(p => [esc(p.propiedad), S(p.ingresos), S(p.egresos), S(p.margen)]), [1,2,3])}</div>
     </div>
     <div class="tarjeta">
       <h4>Deuda viva</h4>
       <div class="tabla-scroll">${tabla(["Inquilino","Propiedad","Debe","Desde"],
-        (deuda||[]).map(d => [esc(d.inquilino), esc(d.propiedad||"—"), S(d.debe), d.desde], ), [2])}</div>
+        (deuda||[]).map(d => [esc(d.inquilino), esc(d.propiedad||"—"), S(d.debe), d.desde]), [2])}</div>
     </div>
     <div class="tarjeta">
       <h4>Últimos meses</h4>
       <div class="tabla-scroll">${tabla(["Mes","Ingresos","Egresos","Comisión","Utilidad"],
-        (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision), S(m.utilidad)], ), [1,2,3,4])}</div>
+        (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision), S(m.utilidad)]), [1,2,3,4])}</div>
     </div>`;
 }
 
