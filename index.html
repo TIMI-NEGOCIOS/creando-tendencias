@@ -199,8 +199,8 @@
   .th-plegable:hover{color:var(--morado-hondo)}
   .plegada{max-width:46px;width:46px;overflow:hidden;text-overflow:clip;color:var(--gris-claro)}
   .celda-pago{min-width:150px;position:relative}
-  .celda-pago .texto{display:block;line-height:1.35}
-  .celda-pago .venc{color:var(--gris-claro);font-size:12.5px}
+  .celda-pago .texto{display:block;line-height:1.4;text-align:center}
+  .celda-pago .venc{color:var(--gris-claro);font-size:12.5px;text-align:center}
   .celda-pago .lapiz{position:absolute;top:6px;right:6px;opacity:0;transition:opacity .2s;
     width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--gris-claro)}
   .celda-pago:hover .lapiz{opacity:1}
@@ -224,6 +224,44 @@
   td.audit:hover{background:#FBF0F5}
   td.audit.marcado{background:#F7D3E0;color:#7A2544}
   td.audit.marcado::after{content:" ✓";color:#B4479B}
+
+  /* fondo del módulo de alquileres */
+  #pantalla-modulo.lila{position:relative}
+  #pantalla-modulo.lila::before{
+    content:"";position:fixed;right:0;bottom:0;width:min(900px,95vw);height:min(760px,85vh);
+    background:radial-gradient(120% 110% at 100% 100%,
+      rgba(180,71,155,.20) 0%, rgba(192,139,208,.14) 38%, rgba(253,252,253,0) 72%);
+    pointer-events:none;z-index:-1}
+
+  /* pie de tarjeta con acción secundaria */
+  .pie-tarjeta{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap}
+  .secundario{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--linea);border-radius:999px;
+    padding:9px 20px;font-size:13.5px;color:var(--gris);transition:.25s}
+  .secundario:hover{border-color:var(--lila);color:var(--morado-hondo);background:var(--lila-velo)}
+  .secundario svg{width:16px;height:16px}
+  .mini{width:34px;height:34px;border-radius:10px;border:1px solid var(--linea);display:grid;place-items:center;
+    color:var(--gris);transition:.25s}
+  .mini:hover{border-color:var(--lila);color:var(--morado-hondo);background:var(--lila-velo)}
+  .mini svg{width:16px;height:16px}
+  .cabecera-tarjeta{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  .cabecera-tarjeta h4{margin:0}
+
+  /* calendario de avisos */
+  .calendario{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:8px}
+  .dia-cab{font-size:11.5px;letter-spacing:.08em;color:var(--gris-claro);text-align:center;padding:4px 0}
+  .dia{border:1px solid var(--linea);border-radius:12px;min-height:74px;padding:7px 8px;font-size:12px;
+    display:flex;flex-direction:column;gap:3px;background:#fff}
+  .dia.fuera{background:transparent;border-color:transparent}
+  .dia .n{color:var(--gris-claro);font-size:12px}
+  .dia.hoy{border-color:var(--lila);box-shadow:0 0 0 2px var(--lila-velo)}
+  .dia.con-aviso{background:var(--lila-velo);border-color:var(--lila)}
+  .punto{background:var(--morado-hondo);color:#fff;border-radius:7px;padding:2px 6px;font-size:10.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:640px){
+    .calendario{gap:4px}
+    .dia{min-height:58px;padding:5px;font-size:11px}
+    .punto{font-size:9.5px;padding:1px 4px}
+  }
 
   footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
     display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -513,6 +551,7 @@ function abrirModulo(id){
   $("texto-volver").textContent = DIVISIONES[division].nombre;
   mostrar("pantalla-modulo");
   $("flotante").classList.add("oculto");
+  $("pantalla-modulo").classList.toggle("lila", id === "alquileres");
   if (id === "egresos") modEgresos();
   else if (id === "alquileres") modAlquileres();
   else $("cuerpo-modulo").innerHTML =
@@ -958,11 +997,14 @@ window.borrarConexion = async (id) => {
 // ===============================================================
 const IC = {
   lapiz:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+  archivar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3z"/><path d="M5 10v9h14v-9"/><path d="M10 14h4"/></svg>',
+  volverArriba:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 5 5v4"/></svg>',
   tacho:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>'
 };
 let pestAlq = "inquilinos";
 let plegadas = new Set(["inquilino"]);   // la columna de inquilinos arranca plegada
 let filtroConcepto = "";
+let verInactivos = {inq:false, prop:false};
 let datos = {props:[], inq:[], pagos:[], cx:[], rec:[]};
 
 async function modAlquileres(){
@@ -980,15 +1022,16 @@ async function modAlquileres(){
 }
 
 async function cargarAlq(){
-  const [p, i, g, c, r, pp] = await Promise.all([
+  const [p, i, g, c, r, pp, cal] = await Promise.all([
     sb.from("config_propiedad").select("*").order("propiedad"),
     sb.from("inquilinos").select("*").order("propiedad").order("nombre"),
     sb.from("pagos_inquilino").select("*"),
     sb.from("conexiones").select("id, nombre"),
     sb.from("recordatorios").select("*").order("id"),
-    sb.from("pagos_propiedad").select("*")
+    sb.from("pagos_propiedad").select("*"),
+    sb.from("v_calendario_avisos").select("*")
   ]);
-  datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[], pagosProp:pp.data||[]};
+  datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[], pagosProp:pp.data||[], avisos:cal.data||[]};
 }
 
 async function refrescarAlq(){
@@ -1006,11 +1049,16 @@ $("flotante").addEventListener("click", () => fichaInquilino(null));
 
 // ---------- pestaña inquilinos ----------
 function pintarInquilinos(){
-  const filas = datos.inq.map(q => `
+  const lista = datos.inq.filter(q => verInactivos.inq ? !q.activo : q.activo);
+  const inactivos = datos.inq.filter(q => !q.activo).length;
+
+  const filas = lista.map(q => `
     <tr>
       <td data-col="Acciones"><span class="acc">
         <button onclick="fichaInquilino(${q.id})" title="Editar">${IC.lapiz}</button>
-        <button class="peligro" onclick="borrarInquilino(${q.id})" title="Eliminar">${IC.tacho}</button>
+        ${q.activo
+          ? `<button class="peligro" onclick="desactivarInquilino(${q.id})" title="Pasar a inactivos">${IC.tacho}</button>`
+          : `<button onclick="reactivarInquilino(${q.id})" title="Reactivar">${IC.volverArriba}</button>`}
       </span></td>
       <td data-col="Nombre">${esc(q.nombre)}</td>
       <td data-col="DNI">${esc(q.dni||"—")}</td>
@@ -1026,17 +1074,41 @@ function pintarInquilinos(){
 
   $("cuerpo-alq").innerHTML = `
     <div class="tarjeta">
-      <h4>Inquilinos · ${datos.inq.length}</h4>
+      <h4>${verInactivos.inq ? "Inquilinos inactivos" : "Inquilinos"} · ${lista.length}</h4>
       <div class="tabla-scroll">
-        ${datos.inq.length ? `<table class="tabla-tarjetas"><thead><tr>
+        ${lista.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th></th><th>Nombre</th><th>DNI</th><th>Propiedad</th><th>Hab.</th>
           <th class="num">Día</th><th class="num">Alquiler</th><th>Contrato</th>
           <th>Método</th><th>Mascotas</th><th>Acuerdos</th></tr></thead>
           <tbody>${filas}</tbody></table>`
-        : `<p class="vacio">Todavía no hay inquilinos. Usa el botón redondo de abajo a la derecha.</p>`}
+        : `<p class="vacio">${verInactivos.inq ? "No hay inquilinos inactivos." : "Todavía no hay inquilinos. Usa el botón redondo de abajo a la derecha."}</p>`}
+      </div>
+      <div class="pie-tarjeta">
+        <button class="secundario" onclick="alternarInactivos('inq')">
+          ${verInactivos.inq ? IC.volverArriba : IC.archivar}
+          ${verInactivos.inq ? "Volver a los activos" : `Inactivos (${inactivos})`}
+        </button>
       </div>
     </div>`;
 }
+
+window.alternarInactivos = (cual) => {
+  verInactivos[cual] = !verInactivos[cual];
+  cual === "inq" ? pintarInquilinos() : pintarPropiedades();
+};
+
+window.desactivarInquilino = async (id) => {
+  const q = datos.inq.find(x => x.id === id);
+  if (!confirm(`¿Pasar a ${q.nombre} a inactivos?`)) return;
+  if (!confirm(`Última vez: ${q.nombre} dejará de aparecer en pagos y recordatorios. ¿Continuar?`)) return;
+  const {error} = await sb.from("inquilinos").update({activo:false}).eq("id", id);
+  if (error) alert(error.message); else refrescarAlq();
+};
+
+window.reactivarInquilino = async (id) => {
+  const {error} = await sb.from("inquilinos").update({activo:true}).eq("id", id);
+  if (error) alert(error.message); else refrescarAlq();
+};
 
 window.fichaInquilino = (id) => {
   const q = datos.inq.find(x => x.id === id) || {};
@@ -1090,9 +1162,10 @@ function celdaVacia(n, onclick){
     <button class="mas" onclick="${onclick}">Añadir</button></td>`;
 }
 function celdaLlena(p, n, onclick){
-  const vence = p.vence ? "hasta " + p.vence.slice(8,10) + "/" + p.vence.slice(5,7) : "sin fecha";
+  const vence = p.dia_mes ? "Hasta " + p.dia_mes
+              : (p.vence ? "Hasta " + Number(p.vence.slice(8,10)) : "sin día");
   return `<td class="celda-pago ${plegadas.has('pago'+n)?'plegada':''}" data-col="Pago ${n}">
-    <span class="texto">${esc(p.concepto)}: ${Number(p.monto).toFixed(2)}</span>
+    <span class="texto"><small style="color:var(--gris-claro)">S/ </small>${Math.ceil(Number(p.monto))} · ${esc(p.concepto)}</span>
     <span class="texto venc">${vence}${p.pagado ? " · pagado" : ""}</span>
     <button class="lapiz" onclick="${onclick}" title="Editar pago">${IC.lapiz}</button></td>`;
 }
@@ -1105,7 +1178,7 @@ function pintarPagos(){
   const pasaFiltro = p => !filtroConcepto || (p && p.concepto === filtroConcepto);
 
   let cuerpo = "";
-  datos.props.forEach(pr => {
+  datos.props.filter(pr => pr.activa).forEach(pr => {
     const suyos = datos.inq.filter(q => q.propiedad === pr.propiedad && q.activo);
     cuerpo += `<tr class="grupo"><td colspan="7">${esc(pr.propiedad)} · ${suyos.length} inquilino(s)</td></tr>`;
 
@@ -1143,7 +1216,7 @@ function pintarPagos(){
       <h4>Pagos por propiedad</h4>
       <p class="vacio" style="text-align:left;padding:0 0 10px">Haz clic en el título de una columna para plegarla o desplegarla.</p>
       <div class="tabla-scroll">
-        ${datos.props.length ? `<table class="tabla-tarjetas"><thead><tr>
+        ${datos.props.filter(p=>p.activa).length ? `<table class="tabla-tarjetas"><thead><tr>
           <th class="th-plegable ${plegada('propiedad')}" onclick="plegar('propiedad')">${titulo('propiedad','Propiedad')}</th>
           <th class="th-plegable ${plegada('inquilino')}" onclick="plegar('inquilino')">${titulo('inquilino','Inquilino')}</th>
           ${RANURAS.map(n => `<th class="th-plegable ${plegada('pago'+n)}" onclick="plegar('pago${n}')">${titulo('pago'+n,'Pago '+n)}</th>`).join("")}
@@ -1159,7 +1232,7 @@ window.fichaPagoCasa = (propiedad, ranura) => {
     <div class="rejilla">
       <div><label>Concepto</label><input id="p-concepto" value="${esc(p.concepto||"")}" placeholder="renta al dueño, internet, luz"></div>
       <div><label>Monto</label><input id="p-monto" type="number" step="0.01" value="${p.monto||""}"></div>
-      <div><label>Vence</label><input id="p-vence" type="date" value="${p.vence||""}"></div>
+      <div><label>Día de pago</label><input id="p-dia" type="number" min="1" max="31" value="${p.dia_mes||""}" placeholder="15"></div>
       <div><label>¿Pagado?</label><select id="p-pagado">
         <option value="no" ${p.pagado?"":"selected"}>Pendiente</option>
         <option value="si" ${p.pagado?"selected":""}>Pagado</option></select></div>
@@ -1167,12 +1240,13 @@ window.fichaPagoCasa = (propiedad, ranura) => {
     <div class="campo"><label>Nota</label><input id="p-nota" value="${esc(p.nota||"")}"></div>`,
     async () => {
       const fila = {
-        propiedad, ranura,
+        propiedad, ranura, dia_mes: +$("p-dia").value||null,
         concepto: $("p-concepto").value.trim(), monto: +$("p-monto").value||0,
-        vence: $("p-vence").value||null, pagado: $("p-pagado").value === "si",
+        pagado: $("p-pagado").value === "si",
         nota: $("p-nota").value.trim()||null
       };
       if (!fila.concepto) return "Falta el concepto.";
+      if (!fila.dia_mes) return "Falta el día del mes.";
       const {error} = await sb.from("pagos_propiedad").upsert(fila, {onConflict:"propiedad,ranura"});
       return error ? error.message : null;
     },
@@ -1217,31 +1291,59 @@ window.fichaPago = (inquilinoId, ranura) => {
 
 // ---------- pestaña propiedades ----------
 function pintarPropiedades(){
-  const filas = datos.props.map(p => `
+  const lista = datos.props.filter(p => verInactivos.prop ? !p.activa : p.activa);
+  const inactivas = datos.props.filter(p => !p.activa).length;
+
+  const filas = lista.map(p => `
     <tr>
       <td data-col="Acciones"><span class="acc">
         <button onclick="fichaPropiedad('${esc(p.propiedad)}')" title="Editar">${IC.lapiz}</button>
-        <button class="peligro" onclick="borrarPropiedad('${esc(p.propiedad)}')" title="Eliminar">${IC.tacho}</button>
+        ${p.activa
+          ? `<button class="peligro" onclick="desactivarPropiedad('${esc(p.propiedad)}')" title="Pasar a inactivas">${IC.tacho}</button>`
+          : `<button onclick="reactivarPropiedad('${esc(p.propiedad)}')" title="Reactivar">${IC.volverArriba}</button>`}
       </span></td>
       <td data-col="Propiedad">${esc(p.propiedad)}</td>
       <td data-col="Dirección">${esc(p.direccion||"—")}</td>
       <td data-col="Renta al dueño" class="num">${S(p.renta_propietario)}</td>
       <td data-col="Día de pago" class="num">${p.dia_pago_dueno||"—"}</td>
       <td data-col="Contrato">${p.contrato_inicio||"—"} → ${p.contrato_fin||"—"}</td>
-      <td data-col="Estado">${p.activa ? "Activa" : "Inactiva"}</td>
     </tr>`).join("");
+
   $("cuerpo-alq").innerHTML = `
     <div class="tarjeta">
-      <h4>Propiedades · ${datos.props.length}</h4>
-      <div class="rejilla" style="margin-bottom:16px">
-        <button class="primario" onclick="fichaPropiedad(null)">Añadir propiedad</button>
+      <div class="cabecera-tarjeta">
+        <h4>${verInactivos.prop ? "Propiedades inactivas" : "Propiedades"} · ${lista.length}</h4>
+        <button class="mini" onclick="fichaPropiedad(null)" title="Añadir propiedad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
       </div>
-      <div class="tabla-scroll"><table class="tabla-tarjetas"><thead><tr>
-        <th></th><th>Propiedad</th><th>Dirección</th><th class="num">Renta al dueño</th>
-        <th class="num">Día</th><th>Contrato</th><th>Estado</th></tr></thead>
-        <tbody>${filas}</tbody></table></div>
+      <div class="tabla-scroll">
+        ${lista.length ? `<table class="tabla-tarjetas"><thead><tr>
+          <th></th><th>Propiedad</th><th>Dirección</th><th class="num">Renta al dueño</th>
+          <th class="num">Día</th><th>Contrato</th></tr></thead>
+          <tbody>${filas}</tbody></table>`
+        : `<p class="vacio">${verInactivos.prop ? "No hay propiedades inactivas." : "Añade una propiedad con el botón de arriba."}</p>`}
+      </div>
+      <div class="pie-tarjeta">
+        <button class="secundario" onclick="alternarInactivos('prop')">
+          ${verInactivos.prop ? IC.volverArriba : IC.archivar}
+          ${verInactivos.prop ? "Volver a las activas" : `Inactivas (${inactivas})`}
+        </button>
+      </div>
     </div>`;
 }
+
+window.desactivarPropiedad = async (nombre) => {
+  if (!confirm(`¿Pasar ${nombre} a inactivas?`)) return;
+  if (!confirm(`Última vez: ${nombre} dejará de aparecer en pagos y recordatorios, pero su historial se conserva. ¿Continuar?`)) return;
+  const {error} = await sb.from("config_propiedad").update({activa:false}).eq("propiedad", nombre);
+  if (error) alert(error.message); else refrescarAlq();
+};
+
+window.reactivarPropiedad = async (nombre) => {
+  const {error} = await sb.from("config_propiedad").update({activa:true}).eq("propiedad", nombre);
+  if (error) alert(error.message); else refrescarAlq();
+};
 
 window.fichaPropiedad = (nombre) => {
   const p = datos.props.find(x => x.propiedad === nombre) || {};
@@ -1253,17 +1355,13 @@ window.fichaPropiedad = (nombre) => {
       <div><label>Día de pago al dueño</label><input id="r-dia" type="number" min="1" max="31" value="${p.dia_pago_dueno||""}"></div>
       <div><label>Inicio de contrato</label><input id="r-ini" type="date" value="${p.contrato_inicio||""}"></div>
       <div><label>Fin de contrato</label><input id="r-fin" type="date" value="${p.contrato_fin||""}"></div>
-      <div><label>Estado</label><select id="r-activa">
-        <option value="si" ${p.activa!==false?"selected":""}>Activa</option>
-        <option value="no" ${p.activa===false?"selected":""}>Inactiva</option></select></div>
     </div>`,
     async () => {
       const fila = {
         direccion: $("r-dir").value.trim()||null,
         renta_propietario: +$("r-renta").value||0,
         dia_pago_dueno: +$("r-dia").value||null,
-        contrato_inicio: $("r-ini").value||null, contrato_fin: $("r-fin").value||null,
-        activa: $("r-activa").value === "si"
+        contrato_inicio: $("r-ini").value||null, contrato_fin: $("r-fin").value||null
       };
       if (nombre) {
         const {error} = await sb.from("config_propiedad").update(fila).eq("propiedad", nombre);
@@ -1276,28 +1374,58 @@ window.fichaPropiedad = (nombre) => {
     });
 };
 
-window.borrarPropiedad = async (nombre) => {
-  if (!confirm(`¿Eliminar la propiedad ${nombre}?`)) return;
-  if (!confirm(`Última vez: solo se puede si ya no tiene inquilinos ni movimientos. ¿Eliminar ${nombre}?`)) return;
-  const {error} = await sb.from("config_propiedad").delete().eq("propiedad", nombre);
-  if (error) alert("No se pudo eliminar: " + error.message + "\n\nSi tiene datos asociados, márcala como inactiva.");
-  else refrescarAlq();
-};
-
 // ---------- pestaña recordatorios ----------
+function calendarioAvisos(){
+  const hoy = new Date();
+  const anio = hoy.getFullYear(), mes = hoy.getMonth();
+  const primero = new Date(anio, mes, 1);
+  const dias = new Date(anio, mes + 1, 0).getDate();
+  const arranque = (primero.getDay() + 6) % 7;   // lunes primero
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio",
+                 "agosto","setiembre","octubre","noviembre","diciembre"];
+
+  const porDia = {};
+  datos.avisos.forEach(a => {
+    const d = a.fecha_aviso;
+    if (!d.startsWith(`${anio}-${String(mes+1).padStart(2,"0")}`)) return;
+    (porDia[Number(d.slice(8,10))] ||= []).push(a);
+  });
+
+  let celdas = "";
+  for (let i = 0; i < arranque; i++) celdas += `<div class="dia fuera"></div>`;
+  for (let d = 1; d <= dias; d++) {
+    const lista = porDia[d] || [];
+    const esHoy = d === hoy.getDate();
+    celdas += `<div class="dia ${lista.length ? "con-aviso" : ""} ${esHoy ? "hoy" : ""}">
+      <span class="n">${d}</span>
+      ${lista.slice(0,3).map(a =>
+        `<span class="punto" title="${esc(a.inquilino)} · ${esc(a.concepto)} · vence ${a.vence}">
+          ${esc(a.propiedad)} ${Math.ceil(Number(a.monto))}</span>`).join("")}
+      ${lista.length > 3 ? `<span class="n">+${lista.length - 3} más</span>` : ""}
+    </div>`;
+  }
+
+  return `<div class="tarjeta">
+    <h4>Avisos de ${meses[mes]} ${anio}</h4>
+    <p class="vacio" style="text-align:left;padding:0 0 10px">
+      Se arman solos desde los días de pago que registraste. ${datos.avisos.length} aviso(s) programado(s) en total.</p>
+    <div class="calendario">
+      ${["LUN","MAR","MIÉ","JUE","VIE","SÁB","DOM"].map(d => `<div class="dia-cab">${d}</div>`).join("")}
+      ${celdas}
+    </div>
+  </div>`;
+}
+
 function pintarRecordatorios(){
   const horas = n => Array.from({length:24}, (_,h) =>
     `<option value="${h}" ${h===n?"selected":""}>${String(h).padStart(2,"0")}:00</option>`).join("");
-  $("cuerpo-alq").innerHTML = datos.rec.map(r => `
+  $("cuerpo-alq").innerHTML = calendarioAvisos() + datos.rec.map(r => `
     <div class="tarjeta">
       <h4>${esc(r.nombre)}</h4>
       <div class="rejilla">
         <div><label>Nombre</label><input id="w${r.id}-nombre" value="${esc(r.nombre)}"></div>
         <div><label>Días antes</label><input id="w${r.id}-dias" type="number" min="0" max="30" value="${r.dias_antes}"></div>
-        <div><label>Hora (${esc(r.zona)})</label><select id="w${r.id}-hora">${horas(r.hora)}</select></div>
-        <div><label>Zona</label><select id="w${r.id}-zona">
-          <option ${r.zona==="America/Lima"?"selected":""}>America/Lima</option>
-          <option ${r.zona==="America/Bogota"?"selected":""}>America/Bogota</option></select></div>
+        <div><label>Hora (Perú)</label><select id="w${r.id}-hora">${horas(r.hora)}</select></div>
         <div><label>Conexión</label><select id="w${r.id}-cx">
           <option value="">Todas las activas</option>
           ${datos.cx.map(c => `<option value="${c.id}" ${c.id===r.conexion_id?"selected":""}>${esc(c.nombre)}</option>`).join("")}
@@ -1315,13 +1443,26 @@ function pintarRecordatorios(){
         <button class="primario" onclick="guardarRecordatorio(${r.id})">Guardar</button>
       </div>
       <p class="vacio" style="text-align:left;padding:8px 0 0">Último envío: ${r.ultimo_envio ? r.ultimo_envio.slice(0,16).replace("T"," ") : "todavía ninguno"}</p>
-    </div>`).join("");
+    </div>`).join("") + `
+    <div class="tarjeta"><div class="pie-tarjeta">
+      <button class="secundario" onclick="nuevoRecordatorio()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Añadir otro recordatorio
+      </button>
+    </div></div>`;
 }
+
+window.nuevoRecordatorio = async () => {
+  const nombre = prompt("¿Cómo se llama el recordatorio nuevo?", "Aviso extra");
+  if (!nombre) return;
+  const {error} = await sb.from("recordatorios").insert({nombre});
+  if (error) alert(error.message); else refrescarAlq();
+};
 
 window.guardarRecordatorio = async (id) => {
   const v = k => $(`w${id}-${k}`).value;
   const {error} = await sb.from("recordatorios").update({
-    nombre: v("nombre"), dias_antes: +v("dias"), hora: +v("hora"), zona: v("zona"),
+    nombre: v("nombre"), dias_antes: +v("dias"), hora: +v("hora"), zona: "America/Lima",
     conexion_id: v("cx") ? +v("cx") : null, tagear_todos: v("tag")==="si",
     activo: v("activo")==="si", encabezado: v("enc"), cierre: v("cie")
   }).eq("id", id);
