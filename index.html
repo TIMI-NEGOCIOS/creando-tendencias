@@ -955,14 +955,15 @@ async function modAlquileres(){
 }
 
 async function cargarAlq(){
-  const [p, i, g, c, r] = await Promise.all([
+  const [p, i, g, c, r, pp] = await Promise.all([
     sb.from("config_propiedad").select("*").order("propiedad"),
     sb.from("inquilinos").select("*").order("propiedad").order("nombre"),
     sb.from("pagos_inquilino").select("*"),
     sb.from("conexiones").select("id, nombre"),
-    sb.from("recordatorios").select("*").order("id")
+    sb.from("recordatorios").select("*").order("id"),
+    sb.from("pagos_propiedad").select("*")
   ]);
-  datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[]};
+  datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[], pagosProp:pp.data||[]};
 }
 
 async function refrescarAlq(){
@@ -1059,28 +1060,46 @@ window.borrarInquilino = async (id) => {
 
 // ---------- pestaña pagos ----------
 const RANURAS = [1,2,3,4,5];
+function celdaVacia(n, onclick){
+  return `<td class="celda-pago ${plegadas.has('pago'+n)?'plegada':''}" data-col="Pago ${n}">
+    <button class="mas" onclick="${onclick}">Añadir</button></td>`;
+}
+function celdaLlena(p, n, onclick){
+  const vence = p.vence ? "hasta " + p.vence.slice(8,10) + "/" + p.vence.slice(5,7) : "sin fecha";
+  return `<td class="celda-pago ${plegadas.has('pago'+n)?'plegada':''}" data-col="Pago ${n}">
+    <span class="texto">${esc(p.concepto)}: ${Number(p.monto).toFixed(2)}</span>
+    <span class="texto venc">${vence}${p.pagado ? " · pagado" : ""}</span>
+    <button class="lapiz" onclick="${onclick}" title="Editar pago">${IC.lapiz}</button></td>`;
+}
+
 function pintarPagos(){
-  const conceptos = [...new Set(datos.pagos.map(p => p.concepto).filter(Boolean))].sort();
+  const conceptos = [...new Set([...datos.pagos, ...datos.pagosProp]
+    .map(p => p.concepto).filter(Boolean))].sort();
   const plegada = c => plegadas.has(c) ? "plegada" : "";
   const titulo = (c, texto) => plegadas.has(c) ? texto.slice(0,3) : texto;
+  const pasaFiltro = p => !filtroConcepto || (p && p.concepto === filtroConcepto);
 
   let cuerpo = "";
   datos.props.forEach(pr => {
     const suyos = datos.inq.filter(q => q.propiedad === pr.propiedad && q.activo);
-    if (!suyos.length) return;
     cuerpo += `<tr class="grupo"><td colspan="7">${esc(pr.propiedad)} · ${suyos.length} inquilino(s)</td></tr>`;
+
+    // fila propia de la casa: existe haya o no inquilinos
+    const celdasCasa = RANURAS.map(n => {
+      const p = datos.pagosProp.find(x => x.propiedad === pr.propiedad && x.ranura === n);
+      if (!pasaFiltro(p)) return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}"></td>`;
+      const accion = `fichaPagoCasa('${esc(pr.propiedad)}',${n})`;
+      return p ? celdaLlena(p, n, accion) : celdaVacia(n, accion);
+    }).join("");
+    cuerpo += `<tr><td data-col="Propiedad" class="${plegada('propiedad')}">${esc(pr.propiedad)}</td>
+      <td data-col="Inquilino" class="${plegada('inquilino')}">pago de la casa</td>${celdasCasa}</tr>`;
+
     suyos.forEach(q => {
       const celdas = RANURAS.map(n => {
         const p = datos.pagos.find(x => x.inquilino_id === q.id && x.ranura === n);
-        if (filtroConcepto && (!p || p.concepto !== filtroConcepto))
-          return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}"></td>`;
-        if (!p) return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}">
-            <button class="mas" onclick="fichaPago(${q.id},${n})">Añadir</button></td>`;
-        const vence = p.vence ? "hasta " + p.vence.slice(8,10) + "/" + p.vence.slice(5,7) : "sin fecha";
-        return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}">
-            <span class="texto">${esc(p.concepto)}: ${Number(p.monto).toFixed(2)}</span>
-            <span class="texto venc">${vence}${p.pagado ? " · pagado" : ""}</span>
-            <button class="lapiz" onclick="fichaPago(${q.id},${n})" title="Editar pago">${IC.lapiz}</button></td>`;
+        if (!pasaFiltro(p)) return `<td class="celda-pago ${plegada('pago'+n)}" data-col="Pago ${n}"></td>`;
+        const accion = `fichaPago(${q.id},${n})`;
+        return p ? celdaLlena(p, n, accion) : celdaVacia(n, accion);
       }).join("");
       cuerpo += `<tr><td data-col="Propiedad" class="${plegada('propiedad')}">${esc(q.propiedad)}</td>
         <td data-col="Inquilino" class="${plegada('inquilino')}">${esc(q.nombre)}</td>${celdas}</tr>`;
@@ -1099,15 +1118,44 @@ function pintarPagos(){
       <h4>Pagos por propiedad</h4>
       <p class="vacio" style="text-align:left;padding:0 0 10px">Haz clic en el título de una columna para plegarla o desplegarla.</p>
       <div class="tabla-scroll">
-        ${cuerpo ? `<table class="tabla-tarjetas"><thead><tr>
+        ${datos.props.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th class="th-plegable ${plegada('propiedad')}" onclick="plegar('propiedad')">${titulo('propiedad','Propiedad')}</th>
           <th class="th-plegable ${plegada('inquilino')}" onclick="plegar('inquilino')">${titulo('inquilino','Inquilino')}</th>
           ${RANURAS.map(n => `<th class="th-plegable ${plegada('pago'+n)}" onclick="plegar('pago${n}')">${titulo('pago'+n,'Pago '+n)}</th>`).join("")}
         </tr></thead><tbody>${cuerpo}</tbody></table>`
-        : `<p class="vacio">Registra inquilinos primero.</p>`}
+        : `<p class="vacio">Añade una propiedad en la pestaña Propiedades.</p>`}
       </div>
     </div>`;
 }
+
+window.fichaPagoCasa = (propiedad, ranura) => {
+  const p = datos.pagosProp.find(x => x.propiedad === propiedad && x.ranura === ranura) || {};
+  abrirFicha(`Pago ${ranura} · ${propiedad}`, `
+    <div class="rejilla">
+      <div><label>Concepto</label><input id="p-concepto" value="${esc(p.concepto||"")}" placeholder="renta al dueño, internet, luz"></div>
+      <div><label>Monto</label><input id="p-monto" type="number" step="0.01" value="${p.monto||""}"></div>
+      <div><label>Vence</label><input id="p-vence" type="date" value="${p.vence||""}"></div>
+      <div><label>¿Pagado?</label><select id="p-pagado">
+        <option value="no" ${p.pagado?"":"selected"}>Pendiente</option>
+        <option value="si" ${p.pagado?"selected":""}>Pagado</option></select></div>
+    </div>
+    <div class="campo"><label>Nota</label><input id="p-nota" value="${esc(p.nota||"")}"></div>`,
+    async () => {
+      const fila = {
+        propiedad, ranura,
+        concepto: $("p-concepto").value.trim(), monto: +$("p-monto").value||0,
+        vence: $("p-vence").value||null, pagado: $("p-pagado").value === "si",
+        nota: $("p-nota").value.trim()||null
+      };
+      if (!fila.concepto) return "Falta el concepto.";
+      const {error} = await sb.from("pagos_propiedad").upsert(fila, {onConflict:"propiedad,ranura"});
+      return error ? error.message : null;
+    },
+    p.id ? async () => {
+      const {error} = await sb.from("pagos_propiedad").delete().eq("id", p.id);
+      return error ? error.message : null;
+    } : null);
+};
 
 window.plegar = (col) => { plegadas.has(col) ? plegadas.delete(col) : plegadas.add(col); pintarPagos(); };
 
