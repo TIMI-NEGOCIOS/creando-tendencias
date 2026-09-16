@@ -246,6 +246,11 @@
   .cabecera-tarjeta{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
   .cabecera-tarjeta h4{margin:0}
 
+  /* enlace discreto de administración */
+  .rincon{display:flex;justify-content:flex-end;margin-top:26px}
+  .rincon .secundario{font-size:12.5px;padding:7px 16px;color:var(--gris-claro)}
+  .rincon .secundario svg{width:14px;height:14px}
+
   /* calendario de avisos */
   .calendario{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:8px}
   .dia-cab{font-size:11.5px;letter-spacing:.08em;color:var(--gris-claro);text-align:center;padding:4px 0}
@@ -374,6 +379,12 @@
       </button>
       <h1 id="titulo-panel">Panel</h1>
       <div class="modulos" id="lista-modulos"></div>
+      <div class="rincon oculto" id="rincon-usuarios">
+        <button class="secundario" onclick="irAUsuarios()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.7 7.5 9.5 4.4-1.8 7.5-5.3 7.5-9.5V6z"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8.6 16.5a3.8 3.8 0 0 1 6.8 0"/></svg>
+          Usuarios y permisos
+        </button>
+      </div>
     </section>
 
     <!-- ===== 4. MÓDULO ABIERTO ===== -->
@@ -530,7 +541,6 @@ document.querySelectorAll(".division").forEach(b => b.addEventListener("click", 
   division = b.dataset.division;
   $("titulo-panel").textContent = DIVISIONES[division].nombre;
   const lista = DIVISIONES[division].modulos.slice();
-  if (perfilActual?.rol === "super_admin") lista.push("usuarios");
   $("lista-modulos").innerHTML = lista.map(id => `
     <div class="modulo" tabindex="0" data-modulo="${id}">
       <div class="icono">${ICONOS[id]}</div>
@@ -542,8 +552,11 @@ document.querySelectorAll(".division").forEach(b => b.addEventListener("click", 
     m.addEventListener("click", () => abrirModulo(m.dataset.modulo));
     m.addEventListener("keydown", e => { if (e.key === "Enter") abrirModulo(m.dataset.modulo); });
   });
+  $("rincon-usuarios").classList.toggle("oculto", perfilActual?.rol !== "super_admin");
   mostrar("pantalla-panel");
 }));
+
+window.irAUsuarios = () => { subActual = "usuarios"; abrirAdmin(); };
 
 document.querySelectorAll("[data-ir]").forEach(b => b.addEventListener("click", () => mostrar(b.dataset.ir)));
 $("volver-panel").addEventListener("click", () => mostrar("pantalla-panel"));
