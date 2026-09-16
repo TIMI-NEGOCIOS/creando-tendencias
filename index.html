@@ -928,7 +928,9 @@ window.editarEgreso = async (id) => {
 };
 
 async function pintarDeudas(){
-  const {data} = await sb.from("v_deudas_saldo").select("*");
+  const {data, error} = await sb.from("v_deudas_saldo").select("*");
+  if (error) { $("contenido").innerHTML = `<div class="tarjeta"><p class="vacio">${esc(error.message)}</p></div>`; return; }
+
   $("contenido").innerHTML = `
     <div class="tarjeta">
       <h4>Anotar una deuda</h4>
@@ -937,25 +939,41 @@ async function pintarDeudas(){
           ${maestros.pagadores.map(p => `<option>${esc(p.nombre)}</option>`).join("")}</select></div>
         <div><label>Concepto</label><input id="d-concepto" placeholder="Adelanto de caja"></div>
         <div><label>Propiedad</label><select id="d-prop"><option value="">—</option>${PROPIEDADES.map(p=>`<option>${p}</option>`).join("")}</select></div>
-        <div><label>Monto</label><input id="d-monto" type="number" step="0.01" placeholder="642"></div>
+        <div><label>Monto</label><input id="d-monto" type="number" step="0.01" placeholder="287"></div>
         <div><label>Referencia</label><input id="d-ref" placeholder="A qué o a quién corresponde"></div>
         <button class="primario" onclick="guardarDeuda()">Guardar</button>
       </div>
     </div>
     <div class="tarjeta">
       <h4>Deudas · ${data?.length || 0}</h4>
-      <div class="tabla-scroll">${tabla(
-        ["Socio","Concepto","Propiedad","Original","Abonado","Saldo","Desde","Estado",""],
-        (data||[]).map(r => [esc(r.deudor||"—"), esc(r.concepto||""), esc(r.propiedad||"—"),
-          S(r.monto_original), S(r.abonado), S(r.saldo), r.fecha,
-          r.saldada ? "Saldada" : "Pendiente",
-          `<span class="acc">
-            <button onclick="abonar(${r.id})" title="Registrar un abono">
+      <div class="tabla-scroll">
+        ${data?.length ? `<table class="tabla-tarjetas"><thead><tr>
+          <th>Socio</th><th>Concepto</th><th>Propiedad</th><th class="num">Original</th>
+          <th class="num">Abonado</th><th class="num">Saldo</th><th>Desde</th><th>Estado</th><th></th>
+        </tr></thead><tbody>
+        ${data.map(r => `<tr>
+          <td data-col="Socio">${esc(r.deudor||"—")}</td>
+          <td data-col="Concepto">${esc(r.concepto||"")}</td>
+          <td data-col="Propiedad">${esc(r.propiedad||"—")}</td>
+          <td data-col="Original" class="num">${S(r.monto_original)}</td>
+          <td data-col="Abonado" class="num" style="color:var(--verde)">${S(r.abonado)}</td>
+          <td data-col="Saldo" class="num"><strong>${S(r.saldo)}</strong></td>
+          <td data-col="Desde">${r.fecha}</td>
+          <td data-col="Estado">${r.saldada || r.saldo <= 0
+            ? '<span style="color:var(--verde)">Saldada</span>'
+            : `<span style="color:var(--alerta)">Pendiente</span>`}
+            ${r.abonos ? `<span class="n" style="color:var(--gris-claro);font-size:12px"> · ${r.abonos} abono(s)</span>` : ""}</td>
+          <td data-col="Acciones"><span class="acc">
+            <button data-deuda-abonar="${r.id}" title="Registrar un abono">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-            <button onclick="verAbonos(${r.id})" title="Ver abonos anteriores">
+            <button data-deuda-abonos="${r.id}" title="Ver y editar los abonos">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 7v7"/><circle cx="12" cy="17.5" r=".6" fill="currentColor"/></svg></button>
-            <button class="peligro" onclick="borrar('deudas',${r.id})" title="Eliminar">${IC.tacho}</button>
-          </span>`]), [3,4,5])}</div>
+            <button data-deuda-editar="${r.id}" title="Editar la deuda">${IC.lapiz}</button>
+            <button class="peligro" data-deuda-borrar="${r.id}" title="Eliminar la deuda">${IC.tacho}</button>
+          </span></td>
+        </tr>`).join("")}
+        </tbody></table>` : `<p class="vacio">Todavía no hay deudas registradas.</p>`}
+      </div>
     </div>`;
 }
 
@@ -965,10 +983,30 @@ window.guardarDeuda = async () => {
     referencia: $("d-ref").value.trim()||null, inquilino: $("d-deudor").value};
   if (!fila.monto) { alert("Falta el monto."); return; }
   const {error} = await sb.from("deudas").insert(fila);
-  if (error) alert("No se guardó: " + error.message); else refrescar();
+  if (error) alert("No se guardó: " + error.message);
+  else { $("d-monto").value = ""; $("d-concepto").value = ""; refrescar(); }
 };
 
-window.abonar = (deudaId) => {
+// ---- un solo manejador para toda la pestaña de deudas ----
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-deuda-abonar],button[data-deuda-abonos],button[data-deuda-editar],button[data-deuda-borrar]");
+  if (!b) return;
+  const d = b.dataset;
+
+  if (d.deudaAbonar)  return fichaAbono(Number(d.deudaAbonar));
+  if (d.deudaAbonos)  return fichaListaAbonos(Number(d.deudaAbonos));
+  if (d.deudaEditar)  return fichaDeuda(Number(d.deudaEditar));
+
+  if (d.deudaBorrar) {
+    const id = Number(d.deudaBorrar);
+    if (!confirm("¿Eliminar esta deuda? Se borran también sus abonos.")) return;
+    if (!confirm("Última vez: no se puede deshacer. ¿Eliminar?")) return;
+    const {error} = await sb.from("deudas").delete().eq("id", id);
+    if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
+  }
+});
+
+function fichaAbono(deudaId){
   abrirFicha("Registrar un abono", `
     <div class="rejilla">
       <div><label>Monto abonado</label><input id="a-monto" type="number" step="0.01" placeholder="200"></div>
@@ -984,17 +1022,80 @@ window.abonar = (deudaId) => {
         medio: $("a-medio").value||null, nota: $("a-nota").value.trim()||null});
       return error ? error.message : null;
     });
-};
+}
 
-window.verAbonos = async (deudaId) => {
+async function fichaListaAbonos(deudaId){
   const {data} = await sb.from("abonos").select("*").eq("deuda_id", deudaId).order("fecha", {ascending:false});
+  const total = (data||[]).reduce((t,a) => t + Number(a.monto), 0);
   abrirFicha("Abonos entregados", `
-    <div class="tabla-scroll">${tabla(["Fecha","Monto","Medio","Nota"],
-      (data||[]).map(a => [a.fecha, S(a.monto), esc(a.medio||"—"), esc(a.nota||"")]), [1])}</div>
-    <p class="vacio" style="text-align:left;padding:12px 0 0">
-      Total abonado: ${S((data||[]).reduce((t,a) => t + Number(a.monto), 0))}</p>`,
+    <div class="tabla-scroll">
+      ${data?.length ? `<table><thead><tr><th>Fecha</th><th class="num">Monto</th><th>Medio</th><th>Nota</th><th></th></tr></thead><tbody>
+        ${data.map(a => `<tr>
+          <td>${a.fecha}</td><td class="num">${S(a.monto)}</td><td>${esc(a.medio||"—")}</td><td>${esc(a.nota||"")}</td>
+          <td><span class="acc">
+            <button data-abono-editar="${a.id}" title="Editar">${IC.lapiz}</button>
+            <button class="peligro" data-abono-borrar="${a.id}" title="Eliminar">${IC.tacho}</button>
+          </span></td></tr>`).join("")}
+      </tbody></table>` : `<p class="vacio">Esta deuda todavía no tiene abonos.</p>`}
+    </div>
+    <p class="vacio" style="text-align:left;padding:12px 0 0">Total abonado: ${S(total)}</p>`,
     async () => null);
-};
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-abono-editar],button[data-abono-borrar]");
+  if (!b) return;
+
+  if (b.dataset.abonoBorrar) {
+    const id = Number(b.dataset.abonoBorrar);
+    if (!confirm("¿Eliminar este abono?")) return;
+    const {error} = await sb.from("abonos").delete().eq("id", id);
+    if (error) { alert("No se pudo eliminar: " + error.message); return; }
+    cerrarFicha(); refrescar();
+    return;
+  }
+
+  const id = Number(b.dataset.abonoEditar);
+  const {data: a} = await sb.from("abonos").select("*").eq("id", id).single();
+  abrirFicha("Editar abono", `
+    <div class="rejilla">
+      <div><label>Monto</label><input id="b-monto" type="number" step="0.01" value="${a.monto}"></div>
+      <div><label>Fecha</label><input id="b-fecha" type="date" value="${a.fecha}"></div>
+      <div><label>Medio</label><select id="b-medio">${opcionesMetodo(a.medio)}</select></div>
+    </div>
+    <div class="campo"><label>Nota</label><input id="b-nota" value="${esc(a.nota||"")}"></div>`,
+    async () => {
+      const monto = +$("b-monto").value || 0;
+      if (!monto) return "Falta el monto.";
+      const {error} = await sb.from("abonos").update({
+        monto, fecha: $("b-fecha").value,
+        medio: $("b-medio").value||null, nota: $("b-nota").value.trim()||null}).eq("id", id);
+      return error ? error.message : null;
+    });
+});
+
+async function fichaDeuda(id){
+  const {data: d} = await sb.from("deudas").select("*").eq("id", id).single();
+  abrirFicha("Editar deuda", `
+    <div class="rejilla">
+      <div><label>Socio que debe</label><select id="g-deudor">
+        ${maestros.pagadores.map(p => `<option ${p.nombre===d.deudor?"selected":""}>${esc(p.nombre)}</option>`).join("")}</select></div>
+      <div><label>Concepto</label><input id="g-concepto" value="${esc(d.concepto||"")}"></div>
+      <div><label>Propiedad</label><select id="g-prop"><option value="">—</option>
+        ${PROPIEDADES.map(p=>`<option ${p===d.propiedad?"selected":""}>${p}</option>`).join("")}</select></div>
+      <div><label>Monto original</label><input id="g-monto" type="number" step="0.01" value="${d.monto}"></div>
+      <div><label>Fecha</label><input id="g-fecha" type="date" value="${d.fecha}"></div>
+    </div>
+    <div class="campo"><label>Referencia</label><input id="g-ref" value="${esc(d.referencia||"")}"></div>`,
+    async () => {
+      const {error} = await sb.from("deudas").update({
+        deudor: $("g-deudor").value, concepto: $("g-concepto").value.trim()||null,
+        propiedad: $("g-prop").value||null, monto: +$("g-monto").value||0,
+        fecha: $("g-fecha").value, referencia: $("g-ref").value.trim()||null
+      }).eq("id", id);
+      return error ? error.message : null;
+    });
+}
 
 async function pintarResumen(){
   const {desde} = rango();
