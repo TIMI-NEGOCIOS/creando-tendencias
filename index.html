@@ -224,6 +224,11 @@
   td.audit:hover{background:#FBF0F5}
   td.audit.marcado{background:#F7D3E0;color:#7A2544}
   td.audit.marcado::after{content:" ✓";color:#B4479B}
+  td.audit.pagada{background:#D8F0E4;color:#1F6B4E}
+  td.audit.pagada::after{content:" ✓ pagada";color:#2E8B62;font-size:11px}
+  td.audit:hover{outline:2px solid var(--lila);outline-offset:-2px}
+  th.plegable-socios{cursor:pointer;user-select:none}
+  th.plegable-socios:hover{color:var(--morado-hondo)}
 
   /* fondo del módulo de alquileres */
   #pantalla-modulo.lila{position:relative}
@@ -471,6 +476,7 @@ const CATEGORIAS = ["alquiler","mantenimiento","internet","luz","gas","varios","
 let division = null, perfilActual = null, mesActual = new Date().toISOString().slice(0,7), pestanaActual = "ingresos";
 let maestros = {inq:[], metodos:[], conceptos:[], pagadores:[]};
 let filtros = {};
+let verSocios = false;
 const S = n => "S/ " + (Number(n)||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc = t => String(t ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
 const mostrar = id => {
@@ -750,15 +756,30 @@ async function pintarIngresos(){
     <div class="tarjeta">
       <h4>Pagos del mes · ${filas.length}${filas.length !== (data||[]).length ? ` de ${(data||[]).length}` : ""}</h4>
       <div class="tabla-scroll">${tabla(
-        ["Fecha","Propiedad","Hab.","Inquilino","Concepto","Monto","Comisión","Método","Nota",""],
+        ["Fecha","Propiedad","Hab.","Inquilino","Concepto","Monto",
+         {html:(verSocios?"Comisión ▾":"Comisión ▸"), clase:"plegable-socios", click:"verSocios=!verSocios; refrescar()"},
+         ...(verSocios ? ["Magalli","Matías"] : []),
+         "Método","Nota",""],
         filas.map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
           esc(r.inquilino), esc(r.concepto||"alquiler"), S(r.monto||r.renta),
-          {html: S(r.comision), clase: "audit" + (r.auditado ? " marcado" : ""),
-           click: `auditar('ing_alquiler',${r.id},${!r.auditado})`},
+          {html: S(r.comision),
+           clase: "audit" + (r.comision_pagada ? " pagada" : r.auditado ? " marcado" : ""),
+           click: `cicloComision(${r.id}, ${r.auditado}, ${r.comision_pagada})`,
+           titulo: "Un clic: revisada · dos: pagada · tres: sin marcar"},
+          ...(verSocios ? [
+            {html: S(r.pago_magalli ?? r.comision/2),
+             clase: "audit" + (r.magalli_pagada ? " pagada" : ""),
+             click: `pagarSocio(${r.id},'magalli_pagada',${!r.magalli_pagada})`,
+             titulo: "Clic para marcar lo de Magalli como cobrado"},
+            {html: S(r.pago_matias ?? r.comision/2),
+             clase: "audit" + (r.matias_pagada ? " pagada" : ""),
+             click: `pagarSocio(${r.id},'matias_pagada',${!r.matias_pagada})`,
+             titulo: "Clic para marcar lo de Matías como cobrado"}
+          ] : []),
           esc(r.metodo_pago||"—"), esc(r.nota||""),
           `<span class="acc"><button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
            <button class="peligro" onclick="borrar('ing_alquiler',${r.id})" title="Eliminar">${IC.tacho}</button></span>`]),
-        [5,6])}</div>
+        verSocios ? [5,6,7,8] : [5,6])}</div>
     </div>`;
 }
 
@@ -1016,17 +1037,36 @@ async function pintarResumen(){
 
 function tabla(cabeceras, filas, numericas = []){
   if (!filas.length) return `<p class="vacio">Todavía no hay registros aquí.</p>`;
-  const th = cabeceras.map((c,i) => `<th class="${numericas.includes(i)?'num':''}">${c}</th>`).join("");
+  const th = cabeceras.map((c,i) => {
+    const num = numericas.includes(i) ? "num" : "";
+    if (c && typeof c === "object" && "html" in c)
+      return `<th class="${num} ${c.clase||""}" ${c.click ? `onclick="${c.click}"` : ""}>${c.html}</th>`;
+    return `<th class="${num}">${c}</th>`;
+  }).join("");
   const celda = (c, i) => {
     const num = numericas.includes(i) ? "num" : "";
     if (c && typeof c === "object" && "html" in c)
       return `<td class="${num} ${c.clase||""}" ${c.click ? `onclick="${c.click}"` : ""}
-        title="Clic para marcar como revisado">${c.html}</td>`;
+        title="${c.titulo || "Clic para marcar como revisado"}">${c.html}</td>`;
     return `<td class="${num}">${c}</td>`;
   };
   const tr = filas.map(f => "<tr>" + f.map(celda).join("") + "</tr>").join("");
   return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
 }
+
+window.cicloComision = async (id, auditado, pagada) => {
+  // sin marcar -> revisada -> pagada -> sin marcar
+  const nuevo = pagada ? {auditado:false, comision_pagada:false, comision_pagada_en:null}
+              : auditado ? {auditado:false, comision_pagada:true, comision_pagada_en:new Date().toISOString()}
+              : {auditado:true, comision_pagada:false};
+  const {error} = await sb.from("ing_alquiler").update(nuevo).eq("id", id);
+  if (error) alert("No se pudo marcar: " + error.message); else refrescar();
+};
+
+window.pagarSocio = async (id, campo, valor) => {
+  const {error} = await sb.from("ing_alquiler").update({[campo]: valor}).eq("id", id);
+  if (error) alert("No se pudo marcar: " + error.message); else refrescar();
+};
 
 window.auditar = async (tabla, id, valor) => {
   const {error} = await sb.from(tabla).update({
