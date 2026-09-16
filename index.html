@@ -177,7 +177,7 @@
   /* ventana de formulario */
   .velo{position:fixed;inset:0;background:rgba(43,36,48,.4);z-index:50;display:none;overflow-y:auto;padding:26px 16px}
   .velo.abierto{display:block}
-  .ficha{background:#fff;border-radius:var(--curva);max-width:660px;margin:0 auto;padding:28px}
+  .ficha{background:#fff;border-radius:var(--curva);max-width:760px;margin:0 auto;padding:28px}
   .ficha h3{font-family:'Cormorant Garamond',serif;font-size:25px;color:var(--morado-hondo);margin-bottom:16px}
   .ficha .rejilla{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
   .ficha textarea{width:100%;padding:12px 14px;font:inherit;font-size:15px;border:1px solid var(--linea);
@@ -1310,7 +1310,7 @@ function pintarInquilinos(){
     <tr>
       <td data-col="Acciones"><span class="acc">
         <button onclick="fichaInquilino(${q.id})" title="Editar">${IC.lapiz}</button>
-        <button onclick="verContrato(${q.id})" title="Ver contrato">${IC.info}</button>
+        <button onclick="verAcuerdo(${q.id})" title="Ver contrato">${IC.info}</button>
         ${q.activo
           ? `<button class="peligro" onclick="desactivarInquilino(${q.id})" title="Pasar a inactivos">${IC.tacho}</button>`
           : `<button onclick="reactivarInquilino(${q.id})" title="Reactivar">${IC.volverArriba}</button>`}
@@ -1351,10 +1351,21 @@ function pintarInquilinos(){
 }
 
 window.verAcuerdo = async (id) => {
-  const {data: q} = await sb.from("inquilinos").select("nombre, propiedad, habitacion, acuerdos").eq("id", id).single();
-  abrirFicha(`Acuerdos particulares · ${q.nombre}`, `
-    <p class="vacio" style="text-align:left;padding:0 0 12px">${esc(q.propiedad)} · habitación ${esc(q.habitacion||"—")}</p>
-    <textarea readonly style="min-height:220px;font-size:13.5px;line-height:1.6">${esc(q.acuerdos||"")}</textarea>`,
+  const {data: q} = await sb.from("inquilinos")
+    .select("nombre, propiedad, habitacion, acuerdos, contrato_texto").eq("id", id).single();
+
+  const resumen = q.acuerdos
+    ? `<p class="vacio" style="text-align:left;padding:0 0 14px;color:var(--morado-hondo)">${esc(q.acuerdos)}</p>` : "";
+
+  abrirFicha(`Contrato · ${q.nombre}`, `
+    <p class="vacio" style="text-align:left;padding:0 0 10px">${esc(q.propiedad)} · habitación ${esc(q.habitacion||"—")}</p>
+    ${resumen}
+    ${q.contrato_texto
+      ? `<textarea readonly style="min-height:460px;font-size:13.5px;line-height:1.65">${esc(q.contrato_texto)}</textarea>
+         <div class="pie-tarjeta">
+           <button class="secundario" onclick="bajarContrato(${id})">Descargar en .txt</button>
+         </div>`
+      : `<p class="vacio" style="text-align:left">Este inquilino todavía no tiene el contrato cargado.</p>`}`,
     async () => null);
 };
 
