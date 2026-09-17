@@ -122,6 +122,9 @@
   .vacio{padding:26px 12px;color:var(--gris-claro);font-size:14px;text-align:center}
   .tabla-scroll{overflow-x:auto;margin:0 -24px;padding:0 24px}
   .etiqueta{background:var(--lila-velo);color:var(--morado-hondo);border-radius:999px;padding:3px 11px;font-size:12px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px 3px 9px;
+    font-size:12px;white-space:nowrap;border:1px solid transparent}
+  .chip i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;opacity:.9}
   .borrar{color:var(--gris-claro);font-size:13px}
   .borrar:hover{color:var(--alerta)}
 
@@ -662,9 +665,20 @@ window.pagarRenta = async (propiedad) => {
   if (error) alert("No se pudo registrar: " + error.message); else refrescar();
 };
 
+function colorConcepto(nombre, ambito){
+  const c = maestros.conceptos.find(x => x.nombre === nombre && x.ambito === ambito);
+  return c?.color || "#8C84A0";
+}
+function chipConcepto(nombre, ambito){
+  if (!nombre) return "—";
+  const col = colorConcepto(nombre, ambito);
+  return `<span class="chip" style="color:${col};background:${col}1A;border-color:${col}33">
+    <i></i>${esc(nombre)}</span>`;
+}
+
 function opcionesConcepto(ambito, actual){
   return maestros.conceptos.filter(c => c.ambito === ambito)
-    .map(c => `<option ${c.nombre===actual?"selected":""}>${esc(c.nombre)}</option>`).join("");
+    .map(c => `<option ${c.nombre===actual?"selected":""} style="color:${c.color}">${esc(c.nombre)}</option>`).join("");
 }
 function opcionesMetodo(actual){
   return `<option value="">—</option>` + maestros.metodos
@@ -763,7 +777,7 @@ async function pintarIngresos(){
          ...(verSocios ? ["Magalli","Matías"] : []),
          "Método","Nota",""],
         filas.map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
-          esc(r.inquilino), esc(r.concepto||"alquiler"), S(r.monto||r.renta),
+          esc(r.inquilino), chipConcepto(r.concepto||"alquiler", "ingreso"), S(r.monto||r.renta),
           celdaEstado(r.id, "comision_estado", r.comision_estado, r.comision),
           ...(verSocios ? [
             celdaEstado(r.id, "magalli_estado", r.magalli_estado, r.pago_magalli ?? r.comision/2),
@@ -865,14 +879,14 @@ async function pintarEgresos(){
     <div class="tarjeta">
       <h4>Por categoría</h4>
       <div class="tabla-scroll">${tabla(["Categoría","Movimientos","Total"],
-        (porCat||[]).map(c => [esc(c.categoria), c.movimientos, S(c.total)]), [2])}</div>
+        (porCat||[]).map(c => [chipConcepto(c.categoria, "servicio"), c.movimientos, S(c.total)]), [2])}</div>
     </div>
     <div class="tarjeta">
       <h4>Gastos del mes · ${filas.length}</h4>
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
         filas.map(r => [r.fecha, esc(r.propiedad||"—"),
-          `<span class="etiqueta">${esc(r.categoria_texto||r.categoria)}</span>`,
+          chipConcepto(r.categoria_texto||r.categoria, "servicio"),
           {html: S(r.monto), clase: "audit" + (r.auditado ? " marcado" : ""),
            click: `auditar('egr_alquiler',${r.id},${!r.auditado})`},
           esc(r.responsable||""), esc(r.descripcion||""),
@@ -1448,6 +1462,7 @@ async function cargarAlq(){
 
 async function refrescarAlq(){
   document.querySelectorAll("[data-pa]").forEach(b => b.classList.toggle("viva", b.dataset.pa === pestAlq));
+  if (conectado && !maestros.conceptos.length) await cargarMaestros();
   $("flotante").classList.toggle("oculto", pestAlq !== "inquilinos");
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
   await cargarAlq();
@@ -1623,7 +1638,8 @@ function celdaLlena(p, n, onclick){
   const vence = p.dia_mes ? "Hasta " + p.dia_mes
               : (p.vence ? "Hasta " + Number(p.vence.slice(8,10)) : "sin día");
   return `<td class="celda-pago ${plegadas.has('pago'+n)?'plegada':''}" data-col="Pago ${n}">
-    <span class="texto"><small style="color:var(--gris-claro)">S/ </small>${Math.ceil(Number(p.monto))} · ${esc(p.concepto)}</span>
+    <span class="texto"><small style="color:var(--gris-claro)">S/ </small>${Math.ceil(Number(p.monto))}</span>
+    <span class="texto">${chipConcepto(p.concepto, "servicio")}</span>
     <span class="texto venc">${vence}${p.pagado ? " · pagado" : ""}</span>
     <button class="lapiz" onclick="${onclick}" title="Editar pago">${IC.lapiz}</button></td>`;
 }
