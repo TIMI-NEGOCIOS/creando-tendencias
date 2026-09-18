@@ -454,7 +454,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v10 · exprés</span> · <span id="estado-conexion">Modo demostración</span></span>
+    <span><span id="version-app">v11 · por habitación</span> · <span id="estado-conexion">Modo demostración</span></span>
   </footer>
 </div>
 
@@ -497,6 +497,7 @@ let division = null, perfilActual = null, mesActual = new Date().toISOString().s
 let maestros = {inq:[], metodos:[], conceptos:[], pagadores:[]};
 let filtros = {};
 let verSocios = false;
+let verFiltros = false;
 const S = n => "S/ " + (Number(n)||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc = t => String(t ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
 const mostrar = id => {
@@ -616,6 +617,7 @@ function modEgresos(){
     <div class="pestanas">
       <button class="pestana" data-p="express">Exprés</button>
       <button class="pestana" data-p="ingresos">Ingresos</button>
+      <button class="pestana" data-p="habitacion">Ingresos por habitación</button>
       <button class="pestana" data-p="egresos">Egresos</button>
       <button class="pestana" data-p="deudas">Deudas</button>
       <button class="pestana" data-p="resumen">Resumen</button>
@@ -657,6 +659,7 @@ async function refrescar(){
   await pintarBarraExpress();
   if (pestanaActual === "express") pintarExpress();
   else if (pestanaActual === "ingresos") pintarIngresos();
+  else if (pestanaActual === "habitacion") pintarPorHabitacion();
   else if (pestanaActual === "egresos") pintarEgresos();
   else if (pestanaActual === "deudas") pintarDeudas();
   else pintarResumen();
@@ -715,7 +718,15 @@ window.nuevoConcepto = async (ambito, selectId) => {
 
 // ---- filtro genérico por columna ----
 function barraFiltros(columnas, datos){
-  return `<div class="filtro">${columnas.map(c => {
+  const activos = Object.keys(filtros).length;
+  return `<div class="pie-tarjeta" style="justify-content:flex-start;margin:18px 0 0">
+    <button class="secundario" data-abrir-filtros>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      ${verFiltros ? "Ocultar filtros" : "Filtros"}${activos ? ` · ${activos}` : ""}
+    </button>
+    ${activos ? `<button class="secundario" onclick="filtros={}; refrescar()">Limpiar</button>` : ""}
+  </div>
+  <div class="filtro" style="${verFiltros ? "" : "display:none"}">${columnas.map(c => {
     if (c.tipo === "texto") {
       const valores = [...new Set(datos.map(r => r[c.campo]).filter(Boolean))].sort();
       return `<div class="campo"><label>${c.titulo}</label>
@@ -734,9 +745,12 @@ function barraFiltros(columnas, datos){
       <div class="campo"><label>máximo</label>
       <input type="number" step="0.01" value="${filtros[c.campo+"_max"]||""}" onchange="ponerFiltro('${c.campo}_max', this.value)"></div>`;
   }).join("")}
-  <div class="campo" style="min-width:auto"><label>&nbsp;</label>
-    <button class="secundario" onclick="filtros={}; refrescar()">Limpiar filtros</button></div></div>`;
+  </div>`;
 }
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-abrir-filtros]")) { verFiltros = !verFiltros; refrescar(); }
+});
+
 window.ponerFiltro = (campo, valor) => { valor ? filtros[campo] = valor : delete filtros[campo]; refrescar(); };
 
 function aplicarFiltros(filas, columnas){
@@ -2192,6 +2206,119 @@ async function fichaExpress(id, tipoNuevo){
     } : null);
 
   setTimeout(() => $("x-monto")?.focus(), 60);
+}
+
+
+// ===============================================================
+// INGRESOS POR HABITACIÓN + CALENDARIO POR CASA
+// ===============================================================
+let propsColor = {};
+
+function colorCasa(prop){
+  return propsColor[prop] || "#7A5EA8";
+}
+
+async function pintarPorHabitacion(){
+  const {desde, hasta} = rango();
+
+  const [{data: props}, {data: hab}, {data: pagos}, {data: egr}] = await Promise.all([
+    sb.from("config_propiedad").select("propiedad, color, activa"),
+    sb.from("v_resumen_habitacion").select("*").eq("mes", desde),
+    sb.from("ing_alquiler").select("*").gte("fecha", desde).lte("fecha", hasta).order("fecha"),
+    sb.from("v_egresos_habitacion").select("*").eq("mes", desde)
+  ]);
+
+  propsColor = Object.fromEntries((props||[]).map(p => [p.propiedad, p.color]));
+
+  // ---- agrupar habitaciones por casa ----
+  const porCasa = {};
+  (hab||[]).forEach(h => (porCasa[h.propiedad] ||= []).push(h));
+
+  const bloques = Object.entries(porCasa).map(([casa, filas]) => {
+    const col = colorCasa(casa);
+    const ing = filas.reduce((t,f) => t + Number(f.ingresos), 0);
+    const gastos = (egr||[]).filter(e => e.propiedad === casa)
+      .reduce((t,e) => t + Number(e.total), 0);
+    return `
+      <div class="tarjeta" style="border-left:4px solid ${col}">
+        <div class="cabecera-tarjeta">
+          <h4 style="color:${col}">${esc(casa)}</h4>
+          <span class="chip" style="color:${col};background:${col}1A;border-color:${col}33">
+            <i></i>${filas.length} habitación(es)</span>
+        </div>
+        <div class="tabla-scroll">${tabla(
+          ["Hab.","Inquilino","Ingresos","Comisión","Neto","Pagos"],
+          filas.map(f => [
+            `<span class="chip" style="color:${col};background:${col}1A;border-color:${col}33"><i></i>${esc(f.habitacion)}</span>`,
+            esc(f.inquilino||"—"), S(f.ingresos), S(f.comision), S(f.neto), f.pagos]),
+          [2,3,4,5])}</div>
+        <div class="pie-tarjeta">
+          <span class="exp-saldo"><span>ingresos de la casa</span>${S(ing)}</span>
+          <span class="exp-saldo"><span>gastos de la casa</span>${S(gastos)}</span>
+          <span class="exp-saldo"><span>diferencia</span><strong style="color:${ing-gastos>=0?"var(--verde)":"var(--alerta)"}">${S(ing - gastos)}</strong></span>
+        </div>
+      </div>`;
+  }).join("");
+
+  $("contenido").innerHTML =
+    calendarioIngresos(pagos||[], props||[]) +
+    (bloques || `<div class="tarjeta"><p class="vacio">No hay ingresos registrados en este mes.</p></div>`) +
+    `<div class="tarjeta">
+      <h4>Gastos por casa y categoría</h4>
+      <div class="tabla-scroll">${tabla(["Casa","Categoría","Total","Movimientos"],
+        (egr||[]).map(e => [
+          `<span class="chip" style="color:${colorCasa(e.propiedad)};background:${colorCasa(e.propiedad)}1A;border-color:${colorCasa(e.propiedad)}33"><i></i>${esc(e.propiedad||"—")}</span>`,
+          chipConcepto(e.categoria, "servicio"), S(e.total), e.movimientos]), [2,3])}</div>
+    </div>`;
+}
+
+function calendarioIngresos(pagos, props){
+  const [anio, mes] = mesActual.split("-").map(Number);
+  const dias = new Date(anio, mes, 0).getDate();
+  const arranque = (new Date(anio, mes - 1, 1).getDay() + 6) % 7;   // lunes primero
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio",
+                 "agosto","setiembre","octubre","noviembre","diciembre"];
+  const hoy = new Date().toISOString().slice(0,10);
+
+  const porDia = {};
+  pagos.forEach(p => (porDia[Number(p.fecha.slice(8,10))] ||= []).push(p));
+
+  let celdas = "";
+  for (let i = 0; i < arranque; i++) celdas += `<div class="dia fuera"></div>`;
+  for (let d = 1; d <= dias; d++) {
+    const lista = porDia[d] || [];
+    const fecha = `${anio}-${String(mes).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const total = lista.reduce((t,p) => t + Number(p.monto||p.renta||0), 0);
+    celdas += `<div class="dia ${lista.length ? "con-aviso" : ""} ${fecha === hoy ? "hoy" : ""}"
+      style="${lista.length ? "background:#fff" : ""}">
+      <span class="n">${d}${total ? ` · ${Math.round(total)}` : ""}</span>
+      ${lista.slice(0,3).map(p => {
+        const col = colorCasa(p.propiedad);
+        return `<span class="punto" style="background:${col}"
+          title="${esc(p.inquilino)} · ${esc(p.propiedad)} hab. ${esc(p.habitacion||"—")} · ${S(p.monto||p.renta)}">
+          ${esc(p.habitacion||"?")} · ${Math.round(Number(p.monto||p.renta||0))}</span>`;
+      }).join("")}
+      ${lista.length > 3 ? `<span class="n">+${lista.length - 3} más</span>` : ""}
+    </div>`;
+  }
+
+  const leyenda = props.filter(p => p.activa).map(p =>
+    `<span class="chip" style="color:${p.color};background:${p.color}1A;border-color:${p.color}33"><i></i>${esc(p.propiedad)}</span>`
+  ).join("");
+
+  const total = pagos.reduce((t,p) => t + Number(p.monto||p.renta||0), 0);
+
+  return `<div class="tarjeta">
+    <div class="cabecera-tarjeta">
+      <h4>Ingresos de ${meses[mes-1]} ${anio}</h4>
+      <span class="exp-saldo"><span>total del mes</span>${S(total)}</span>
+    </div>
+    <div class="pie-tarjeta" style="justify-content:flex-start;margin:0 0 12px;gap:8px">${leyenda}</div>
+    <div class="calendario">
+      ${["LUN","MAR","MIÉ","JUE","VIE","SÁB","DOM"].map(d => `<div class="dia-cab">${d}</div>`).join("")}
+      ${celdas}
+    </div>
+  </div>`;
 }
 
 // sesión abierta al recargar
