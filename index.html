@@ -276,6 +276,23 @@
     .punto{font-size:9.5px;padding:1px 4px}
   }
 
+  /* barra exprés */
+  .express{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:22px;
+    border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:16px 20px}
+  .express .dia{font-size:12.5px;color:var(--gris-claro);letter-spacing:.06em;margin-right:auto}
+  .express .dia b{display:block;color:var(--tinta);font-size:14px;font-weight:400;letter-spacing:0;margin-top:2px}
+  .exp-btn{display:inline-flex;align-items:center;gap:9px;border-radius:999px;padding:11px 22px;
+    font-size:14px;color:#fff;transition:filter .2s,transform .2s}
+  .exp-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .exp-btn svg{width:17px;height:17px}
+  .exp-in{background:linear-gradient(100deg,#2E8B62,#3E9A78)}
+  .exp-out{background:linear-gradient(100deg,#A8375F,#C4526F)}
+  .exp-saldo{font-variant-numeric:tabular-nums;font-size:15px}
+  .exp-saldo span{color:var(--gris-claro);font-size:12px;display:block}
+  .pendiente{background:#FDF4F7;color:#8A3550;border-radius:999px;padding:3px 12px;font-size:12px}
+  td.falta-motivo{color:var(--alerta);cursor:pointer}
+  td.falta-motivo:hover{background:#FDF4F7}
+
   footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
     display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
@@ -437,7 +454,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v9 · colores</span> · <span id="estado-conexion">Modo demostración</span></span>
+    <span><span id="version-app">v10 · exprés</span> · <span id="estado-conexion">Modo demostración</span></span>
   </footer>
 </div>
 
@@ -595,7 +612,9 @@ function modEgresos(){
     </div>
     <div class="cifras" id="cifras"></div>
     <div id="alertas"></div>
+    <div class="express" id="barra-express"></div>
     <div class="pestanas">
+      <button class="pestana" data-p="express">Exprés</button>
       <button class="pestana" data-p="ingresos">Ingresos</button>
       <button class="pestana" data-p="egresos">Egresos</button>
       <button class="pestana" data-p="deudas">Deudas</button>
@@ -635,7 +654,9 @@ async function refrescar(){
   }
   await cargarMaestros();
   await pintarCifras();
-  if (pestanaActual === "ingresos") pintarIngresos();
+  await pintarBarraExpress();
+  if (pestanaActual === "express") pintarExpress();
+  else if (pestanaActual === "ingresos") pintarIngresos();
   else if (pestanaActual === "egresos") pintarEgresos();
   else if (pestanaActual === "deudas") pintarDeudas();
   else pintarResumen();
@@ -2027,6 +2048,151 @@ const pestAlqVivo = () => !!document.querySelector("[data-pa]");
 const enAdmin = () => !$("pantalla-admin").classList.contains("oculto");
 const cerrarFicha = () => $("velo").classList.remove("abierto");
 $("velo").addEventListener("click", e => { if (e.target.id === "velo") cerrarFicha(); });
+
+
+// ===============================================================
+// INGRESO Y EGRESO EXPRÉS
+// ===============================================================
+const hoyISO = () => {
+  const f = new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Lima",
+    year:"numeric", month:"2-digit", day:"2-digit"}).formatToParts(new Date());
+  const p = Object.fromEntries(f.map(x => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+};
+
+async function pintarBarraExpress(){
+  const hoy = hoyISO();
+  const {data} = await sb.from("movimientos_express").select("*").eq("fecha", hoy);
+  const mov = data || [];
+  const entro = mov.filter(m => m.tipo === "ingreso").reduce((t,m) => t + Number(m.monto), 0);
+  const salio = mov.filter(m => m.tipo === "egreso").reduce((t,m) => t + Number(m.monto), 0);
+  const faltan = mov.filter(m => !m.motivo).length;
+  const fecha = new Date(hoy + "T12:00:00").toLocaleDateString("es-PE",
+    {weekday:"long", day:"numeric", month:"long"});
+
+  $("barra-express").innerHTML = `
+    <div class="dia">HOY<b>${fecha}</b></div>
+    <div class="exp-saldo"><span>entró</span>${S(entro)}</div>
+    <div class="exp-saldo"><span>salió</span>${S(salio)}</div>
+    <div class="exp-saldo"><span>neto</span><strong>${S(entro - salio)}</strong></div>
+    ${faltan ? `<span class="pendiente" data-exp-ir>${faltan} sin motivo</span>` : ""}
+    <button class="exp-btn exp-in" data-exp-nuevo="ingreso">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Ingreso exprés</button>
+    <button class="exp-btn exp-out" data-exp-nuevo="egreso">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 12h14"/></svg>
+      Egreso exprés</button>`;
+}
+
+async function pintarExpress(){
+  const desde = new Date(Date.now() - 14 * 86400000).toISOString().slice(0,10);
+  const [{data: mov}, {data: dias}] = await Promise.all([
+    sb.from("movimientos_express").select("*").gte("fecha", desde)
+      .order("fecha", {ascending:false}).order("creado_en", {ascending:false}),
+    sb.from("v_express_dia").select("*").gte("fecha", desde)
+  ]);
+
+  const pend = (mov||[]).filter(m => !m.motivo);
+
+  $("contenido").innerHTML = `
+    ${pend.length ? `<div class="alerta">
+      Hay ${pend.length} movimiento(s) sin motivo. Haz clic en la celda de motivo para completarlo.
+    </div>` : ""}
+    <div class="tarjeta">
+      <h4>Movimientos exprés · últimos 14 días</h4>
+      <div class="tabla-scroll">
+        ${mov?.length ? `<table class="tabla-tarjetas"><thead><tr>
+          <th>Fecha</th><th>Tipo</th><th class="num">Monto</th><th>Motivo</th>
+          <th>Propiedad</th><th>Medio</th><th></th></tr></thead><tbody>
+          ${mov.map(m => `<tr>
+            <td data-col="Fecha">${m.fecha}</td>
+            <td data-col="Tipo"><span class="chip" style="color:${m.tipo==="ingreso"?"#2E8B62":"#A8375F"};
+              background:${m.tipo==="ingreso"?"#2E8B621A":"#A8375F1A"}"><i></i>${m.tipo}</span></td>
+            <td data-col="Monto" class="num">${S(m.monto)}</td>
+            <td data-col="Motivo" class="${m.motivo ? "" : "falta-motivo"}" data-exp-motivo="${m.id}">
+              ${m.motivo ? esc(m.motivo) : "poner motivo"}</td>
+            <td data-col="Propiedad">${esc(m.propiedad||"—")}</td>
+            <td data-col="Medio">${esc(m.metodo||"—")}</td>
+            <td data-col="Acciones"><span class="acc">
+              <button data-exp-editar="${m.id}" title="Editar">${IC.lapiz}</button>
+              <button class="peligro" data-exp-borrar="${m.id}" title="Eliminar">${IC.tacho}</button>
+            </span></td></tr>`).join("")}
+        </tbody></table>` : `<p class="vacio">Todavía no hay movimientos exprés. Usa los botones de arriba.</p>`}
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h4>Por día</h4>
+      <div class="tabla-scroll">${tabla(["Fecha","Entró","Salió","Neto","Movimientos","Sin motivo"],
+        (dias||[]).map(d => [d.fecha, S(d.ingresos), S(d.egresos), S(d.neto), d.movimientos,
+          d.sin_motivo ? `<span class="pendiente">${d.sin_motivo}</span>` : "—"]), [1,2,3,4])}</div>
+    </div>`;
+}
+
+// ---- un solo manejador para todo lo exprés ----
+document.addEventListener("click", async (e) => {
+  const nuevo = e.target.closest("[data-exp-nuevo]");
+  if (nuevo) return fichaExpress(null, nuevo.dataset.expNuevo);
+
+  const ir = e.target.closest("[data-exp-ir]");
+  if (ir) { pestanaActual = "express"; return refrescar(); }
+
+  const mot = e.target.closest("[data-exp-motivo]");
+  if (mot) return fichaExpress(Number(mot.dataset.expMotivo));
+
+  const ed = e.target.closest("button[data-exp-editar]");
+  if (ed) return fichaExpress(Number(ed.dataset.expEditar));
+
+  const bo = e.target.closest("button[data-exp-borrar]");
+  if (bo) {
+    if (!confirm("¿Eliminar este movimiento exprés?")) return;
+    const {error} = await sb.from("movimientos_express").delete().eq("id", Number(bo.dataset.expBorrar));
+    if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
+  }
+});
+
+async function fichaExpress(id, tipoNuevo){
+  let m = {tipo: tipoNuevo, fecha: hoyISO(), monto: "", motivo: "", propiedad: "", metodo: ""};
+  if (id) {
+    const {data} = await sb.from("movimientos_express").select("*").eq("id", id).single();
+    if (data) m = data;
+  }
+  const titulo = id ? "Editar movimiento exprés"
+    : (tipoNuevo === "ingreso" ? "Ingreso exprés" : "Egreso exprés");
+
+  abrirFicha(titulo, `
+    <div class="rejilla">
+      <div><label>Monto</label><input id="x-monto" type="number" step="0.01" value="${m.monto||""}" placeholder="0.00"></div>
+      <div><label>Tipo</label><select id="x-tipo">
+        <option value="ingreso" ${m.tipo==="ingreso"?"selected":""}>Ingreso</option>
+        <option value="egreso" ${m.tipo==="egreso"?"selected":""}>Egreso</option></select></div>
+      <div><label>Fecha</label><input id="x-fecha" type="date" value="${m.fecha}"></div>
+      <div><label>Propiedad</label><select id="x-prop"><option value="">—</option>
+        ${PROPIEDADES.map(p => `<option ${p===m.propiedad?"selected":""}>${p}</option>`).join("")}</select></div>
+      <div><label>Medio</label><select id="x-metodo">${opcionesMetodo(m.metodo)}</select></div>
+    </div>
+    <div class="campo"><label>Motivo ${id ? "" : "(puedes dejarlo para después)"}</label>
+      <input id="x-motivo" value="${esc(m.motivo||"")}" placeholder="Motivo"></div>`,
+    async () => {
+      const monto = +$("x-monto").value || 0;
+      if (!monto) return "Falta el monto.";
+      const fila = {
+        tipo: $("x-tipo").value, fecha: $("x-fecha").value, monto,
+        motivo: $("x-motivo").value.trim() || null,
+        propiedad: $("x-prop").value || null,
+        metodo: $("x-metodo").value || null
+      };
+      const {error} = id
+        ? await sb.from("movimientos_express").update(fila).eq("id", id)
+        : await sb.from("movimientos_express").insert(fila);
+      return error ? error.message : null;
+    },
+    id ? async () => {
+      const {error} = await sb.from("movimientos_express").delete().eq("id", id);
+      return error ? error.message : null;
+    } : null);
+
+  setTimeout(() => $("x-monto")?.focus(), 60);
+}
 
 // sesión abierta al recargar
 (async () => {
