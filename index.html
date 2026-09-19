@@ -454,7 +454,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v11 · por habitación</span> · <span id="estado-conexion">Modo demostración</span></span>
+    <span><span id="version-app">v12 · bandeja</span> · <span id="estado-conexion">Modo demostración</span></span>
   </footer>
 </div>
 
@@ -2080,7 +2080,7 @@ async function pintarBarraExpress(){
   const mov = data || [];
   const entro = mov.filter(m => m.tipo === "ingreso").reduce((t,m) => t + Number(m.monto), 0);
   const salio = mov.filter(m => m.tipo === "egreso").reduce((t,m) => t + Number(m.monto), 0);
-  const faltan = mov.filter(m => !m.motivo).length;
+  const faltan = mov.filter(m => !m.destino_id).length;
   const fecha = new Date(hoy + "T12:00:00").toLocaleDateString("es-PE",
     {weekday:"long", day:"numeric", month:"long"});
 
@@ -2089,7 +2089,7 @@ async function pintarBarraExpress(){
     <div class="exp-saldo"><span>entró</span>${S(entro)}</div>
     <div class="exp-saldo"><span>salió</span>${S(salio)}</div>
     <div class="exp-saldo"><span>neto</span><strong>${S(entro - salio)}</strong></div>
-    ${faltan ? `<span class="pendiente" data-exp-ir>${faltan} sin motivo</span>` : ""}
+    ${faltan ? `<span class="pendiente" data-exp-ir>${faltan} por completar</span>` : ""}
     <button class="exp-btn exp-in" data-exp-nuevo="ingreso">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Ingreso exprés</button>
@@ -2106,29 +2106,36 @@ async function pintarExpress(){
     sb.from("v_express_dia").select("*").gte("fecha", desde)
   ]);
 
-  const pend = (mov||[]).filter(m => !m.motivo);
+  const pend = (mov||[]).filter(m => !m.destino_id);
 
   $("contenido").innerHTML = `
     ${pend.length ? `<div class="alerta">
-      Hay ${pend.length} movimiento(s) sin motivo. Haz clic en la celda de motivo para completarlo.
+      Hay ${pend.length} movimiento(s) por completar. Ponles el motivo y se guardan en Ingresos o en Egresos.
     </div>` : ""}
     <div class="tarjeta">
-      <h4>Movimientos exprés · últimos 14 días</h4>
+      <h4>Bandeja exprés · últimos 14 días</h4>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">
+        Lo que anotas aquí es provisional. Al ponerle el motivo pasa a Ingresos o a Egresos según el tipo.</p>
       <div class="tabla-scroll">
         ${mov?.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th>Fecha</th><th>Tipo</th><th class="num">Monto</th><th>Motivo</th>
-          <th>Propiedad</th><th>Medio</th><th></th></tr></thead><tbody>
+          <th>Propiedad</th><th>Estado</th><th></th></tr></thead><tbody>
           ${mov.map(m => `<tr>
             <td data-col="Fecha">${m.fecha}</td>
             <td data-col="Tipo"><span class="chip" style="color:${m.tipo==="ingreso"?"#2E8B62":"#A8375F"};
               background:${m.tipo==="ingreso"?"#2E8B621A":"#A8375F1A"}"><i></i>${m.tipo}</span></td>
             <td data-col="Monto" class="num">${S(m.monto)}</td>
-            <td data-col="Motivo" class="${m.motivo ? "" : "falta-motivo"}" data-exp-motivo="${m.id}">
+            <td data-col="Motivo" class="${m.destino_id ? "" : "falta-motivo"}"
+                ${m.destino_id ? "" : `data-exp-completar="${m.id}"`}>
               ${m.motivo ? esc(m.motivo) : "poner motivo"}</td>
             <td data-col="Propiedad">${esc(m.propiedad||"—")}</td>
-            <td data-col="Medio">${esc(m.metodo||"—")}</td>
+            <td data-col="Estado">${m.destino_id
+              ? `<span class="chip" style="color:#1F6B4E;background:#D8F0E4"><i></i>en ${m.destino_tabla==="ing_alquiler"?"Ingresos":"Egresos"}</span>`
+              : `<span class="pendiente">por completar</span>`}</td>
             <td data-col="Acciones"><span class="acc">
-              <button data-exp-editar="${m.id}" title="Editar">${IC.lapiz}</button>
+              ${m.destino_id
+                ? `<button data-exp-devolver="${m.id}" title="Deshacer y devolver a la bandeja">${IC.volverArriba}</button>`
+                : `<button data-exp-completar="${m.id}" title="Completar y guardar">${IC.lapiz}</button>`}
               <button class="peligro" data-exp-borrar="${m.id}" title="Eliminar">${IC.tacho}</button>
             </span></td></tr>`).join("")}
         </tbody></table>` : `<p class="vacio">Todavía no hay movimientos exprés. Usa los botones de arriba.</p>`}
@@ -2136,9 +2143,10 @@ async function pintarExpress(){
     </div>
     <div class="tarjeta">
       <h4>Por día</h4>
-      <div class="tabla-scroll">${tabla(["Fecha","Entró","Salió","Neto","Movimientos","Sin motivo"],
+      <div class="tabla-scroll">${tabla(["Fecha","Entró","Salió","Neto","Movimientos","Por completar","Guardados"],
         (dias||[]).map(d => [d.fecha, S(d.ingresos), S(d.egresos), S(d.neto), d.movimientos,
-          d.sin_motivo ? `<span class="pendiente">${d.sin_motivo}</span>` : "—"]), [1,2,3,4])}</div>
+          d.sin_motivo ? `<span class="pendiente">${d.sin_motivo}</span>` : "—",
+          d.guardados || "—"]), [1,2,3,4])}</div>
     </div>`;
 }
 
@@ -2150,11 +2158,16 @@ document.addEventListener("click", async (e) => {
   const ir = e.target.closest("[data-exp-ir]");
   if (ir) { pestanaActual = "express"; return refrescar(); }
 
-  const mot = e.target.closest("[data-exp-motivo]");
-  if (mot) return fichaExpress(Number(mot.dataset.expMotivo));
+  const comp = e.target.closest("[data-exp-completar]");
+  if (comp) return fichaCompletar(Number(comp.dataset.expCompletar));
 
-  const ed = e.target.closest("button[data-exp-editar]");
-  if (ed) return fichaExpress(Number(ed.dataset.expEditar));
+  const dev = e.target.closest("button[data-exp-devolver]");
+  if (dev) {
+    if (!confirm("¿Deshacer? Se borra el registro de Ingresos o Egresos y vuelve a la bandeja.")) return;
+    const {error} = await sb.rpc("devolver_express", {p_id: Number(dev.dataset.expDevolver)});
+    if (error) alert("No se pudo deshacer: " + error.message); else refrescar();
+    return;
+  }
 
   const bo = e.target.closest("button[data-exp-borrar]");
   if (bo) {
@@ -2163,6 +2176,57 @@ document.addEventListener("click", async (e) => {
     if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
   }
 });
+
+
+// ---- completar un exprés: le pone motivo y lo guarda de verdad ----
+async function fichaCompletar(id){
+  const {data: m} = await sb.from("movimientos_express").select("*").eq("id", id).single();
+  if (!m) return;
+  const esIngreso = m.tipo === "ingreso";
+
+  abrirFicha(`Completar ${esIngreso ? "ingreso" : "egreso"} de ${S(m.monto)}`, `
+    <p class="vacio" style="text-align:left;padding:0 0 14px">
+      Anotado el ${m.fecha}${m.propiedad ? " · " + esc(m.propiedad) : ""}${m.metodo ? " · " + esc(m.metodo) : ""}.
+      Al guardar pasa a ${esIngreso ? "Ingresos" : "Egresos"}.</p>
+    <div class="campo"><label>Motivo</label>
+      <input id="k-motivo" value="${esc(m.motivo||"")}" placeholder="¿De qué fue este movimiento?"></div>
+    <div class="rejilla" style="margin-top:16px">
+      <div><label>Concepto</label><select id="k-concepto">
+        ${opcionesConcepto(esIngreso ? "ingreso" : "servicio", esIngreso ? "varios" : "")}</select></div>
+      ${esIngreso ? `
+        <div><label>Inquilino</label><select id="k-inq" onchange="autoHabExpress()">
+          <option value="">—</option>
+          ${maestros.inq.map(q => `<option value="${q.id}" data-hab="${esc(q.habitacion||"")}" data-prop="${esc(q.propiedad)}"
+            >${esc(q.nombre)} · ${esc(q.propiedad)}</option>`).join("")}
+        </select></div>
+        <div><label>Habitación</label><input id="k-hab" placeholder="3"></div>`
+      : `
+        <div><label>Quién pagó</label><select id="k-resp">
+          ${maestros.pagadores.map(p => `<option>${esc(p.nombre)}</option>`).join("")}</select></div>`}
+    </div>`,
+    async () => {
+      const motivo = $("k-motivo").value.trim();
+      if (!motivo) return "Falta el motivo.";
+      const sel = esIngreso ? $("k-inq").selectedOptions[0] : null;
+      const {error} = await sb.rpc("completar_express", {
+        p_id: id,
+        p_motivo: motivo,
+        p_concepto: $("k-concepto").value,
+        p_inquilino: esIngreso && sel?.value ? sel.textContent.split(" · ")[0].trim() : null,
+        p_inquilino_id: esIngreso && sel?.value ? Number(sel.value) : null,
+        p_habitacion: esIngreso ? ($("k-hab").value.trim() || null) : null,
+        p_responsable: esIngreso ? null : $("k-resp").value
+      });
+      return error ? error.message : null;
+    });
+
+  setTimeout(() => $("k-motivo")?.focus(), 60);
+}
+
+window.autoHabExpress = () => {
+  const o = $("k-inq").selectedOptions[0];
+  if (o && o.dataset.hab) $("k-hab").value = o.dataset.hab;
+};
 
 async function fichaExpress(id, tipoNuevo){
   let m = {tipo: tipoNuevo, fecha: hoyISO(), monto: "", motivo: "", propiedad: "", metodo: ""};
