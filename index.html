@@ -454,7 +454,8 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v12 · bandeja</span> · <span id="estado-conexion">Modo demostración</span></span>
+    <span><span id="version-app">v13 · caché</span> · <button id="estado-conexion" onclick="recargarTodo()"
+      title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
 
@@ -467,7 +468,59 @@ const SUPABASE_URL  = "https://htbtuebxjubxibbtewqn.supabase.co";
 const SUPABASE_ANON = "sb_publishable_TjskSlj2Q78pMBDnp2AFUA_NBCdxzD3";
 
 const conectado = !SUPABASE_ANON.startsWith("TU_") && SUPABASE_ANON.length > 20;
-const sb = conectado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+// ---------------------------------------------------------------
+// CACHÉ DE RED
+// Guarda las respuestas de lectura para que moverse entre
+// pestañas no vuelva a pedirle lo mismo a Supabase. Cualquier
+// escritura la vacía, así nunca se ve información vieja.
+// ---------------------------------------------------------------
+const CACHE_VIDA = 60000;          // un minuto
+const cacheRed = new Map();
+let maestrosEn = 0;
+let enVuelo = 0;
+
+// RPC que solo leen: no deben vaciar la caché
+const RPC_LECTURA = ["cumplimiento_mes"];
+
+function vaciarCache(){ cacheRed.clear(); maestrosEn = 0; }
+
+function marcarCarga(delta){
+  enVuelo = Math.max(0, enVuelo + delta);
+  const e = document.getElementById("estado-conexion");
+  if (e) e.textContent = enVuelo ? "Actualizando…" : "Conectado a Supabase";
+}
+
+async function fetchCacheado(url, opts = {}){
+  // por si alguna llamada llega como objeto Request
+  const esRequest = typeof Request !== "undefined" && url instanceof Request;
+  const metodo = (opts.method || (esRequest ? url.method : "GET")).toUpperCase();
+  const clave = esRequest ? url.url : String(url);
+  const esRpcLectura = RPC_LECTURA.some(n => clave.includes("/rpc/" + n));
+
+  if (metodo !== "GET" && !esRpcLectura) {
+    vaciarCache();
+    return fetch(url, opts);
+  }
+
+  const cacheable = metodo === "GET" && !clave.includes("/auth/");
+  if (cacheable) {
+    const hit = cacheRed.get(clave);
+    if (hit && Date.now() - hit.ts < CACHE_VIDA) return hit.res.clone();
+  }
+
+  marcarCarga(1);
+  try {
+    const res = await fetch(url, opts);
+    if (cacheable && res.ok) cacheRed.set(clave, {ts: Date.now(), res: res.clone()});
+    return res;
+  } finally {
+    marcarCarga(-1);
+  }
+}
+
+const sb = conectado
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {global: {fetch: fetchCacheado}})
+  : null;
 const $ = id => document.getElementById(id);
 if (conectado) $("estado-conexion").textContent = "Conectado a Supabase";
 
@@ -555,6 +608,7 @@ function abrirDivisiones(perfil){
   $("quien-rol").textContent = ROLES[perfil.rol] || perfil.rol;
   $("fila-admin").classList.toggle("oculto", perfil.rol !== "super_admin");
   mostrar("pantalla-divisiones");
+  precargar();
 }
 
 $("btn-salir").addEventListener("click", async () => {
@@ -562,6 +616,36 @@ $("btn-salir").addEventListener("click", async () => {
   $("email").value = ""; $("clave").value = ""; perfilActual = null;
   mostrar("pantalla-acceso");
 });
+
+// Trae de una sola vez lo que se usa en casi todas las pantallas,
+// para que el primer clic ya encuentre los datos listos.
+async function precargar(){
+  if (!conectado) return;
+  const mes = new Date().toISOString().slice(0,7) + "-01";
+  try {
+    await Promise.all([
+      cargarMaestros(true),
+      sb.from("config_propiedad").select("*").order("propiedad"),
+      sb.from("inquilinos").select("*").order("propiedad").order("nombre"),
+      sb.from("v_resumen_mensual").select("*").eq("mes", mes).maybeSingle(),
+      sb.from("v_renta_pendiente").select("*"),
+      sb.from("pagos_inquilino").select("*"),
+      sb.from("pagos_propiedad").select("*"),
+      sb.from("recordatorios").select("*").order("id"),
+      sb.from("conexiones").select("id, nombre")
+    ]);
+  } catch (e) { console.warn("precarga incompleta", e); }
+}
+
+window.recargarTodo = async () => {
+  vaciarCache();
+  await precargar();
+  if (!$("pantalla-modulo").classList.contains("oculto")) {
+    pestAlqVivo() ? refrescarAlq() : refrescar();
+  } else if (!$("pantalla-admin").classList.contains("oculto")) {
+    abrirAdmin();
+  }
+};
 
 // ---------- navegación ----------
 document.querySelectorAll(".division").forEach(b => b.addEventListener("click", () => {
@@ -637,7 +721,10 @@ const rango = () => {
   return {desde, hasta};
 };
 
-async function cargarMaestros(){
+async function cargarMaestros(forzar){
+  // cambian poco: se recargan cada 5 minutos o cuando se pide
+  if (!forzar && maestros.conceptos.length && Date.now() - maestrosEn < 300000) return;
+  maestrosEn = Date.now();
   const [i, m, c, p] = await Promise.all([
     sb.from("inquilinos").select("id, nombre, propiedad, habitacion, metodo_pago").eq("activo", true).order("nombre"),
     sb.from("metodos_pago").select("*").eq("activo", true).order("nombre_interno"),
@@ -1495,7 +1582,7 @@ async function cargarAlq(){
 
 async function refrescarAlq(){
   document.querySelectorAll("[data-pa]").forEach(b => b.classList.toggle("viva", b.dataset.pa === pestAlq));
-  if (conectado && !maestros.conceptos.length) await cargarMaestros();
+  if (conectado) await cargarMaestros();
   $("flotante").classList.toggle("oculto", pestAlq !== "inquilinos");
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
   await cargarAlq();
