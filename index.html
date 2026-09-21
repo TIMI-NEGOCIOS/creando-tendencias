@@ -464,7 +464,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v16</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v17 · deuda aparte</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -793,9 +793,12 @@ async function pintarCifras(){
   const r = data || {ingresos:0, varios:0, egresos:0, comision:0, utilidad:0};
   $("cifras").innerHTML = `
     <div class="cifra"><span>INGRESOS</span><strong>${S(r.ingresos)}</strong></div>
-    <div class="cifra egre"><span>EGRESOS</span><strong>${S(r.egresos)}</strong></div>
+    <div class="cifra egre"><span>GASTOS DEL NEGOCIO</span><strong>${S(r.egresos)}</strong></div>
     <div class="cifra"><span>COMISIÓN 10%</span><strong>${S(r.comision)}</strong></div>
-    <div class="cifra util"><span>UTILIDAD</span><strong>${S(r.utilidad)}</strong></div>`;
+    <div class="cifra util"><span>UTILIDAD OPERATIVA</span><strong>${S(r.utilidad)}</strong></div>
+    ${Number(r.pagos_deuda) ? `<div class="cifra"><span>PAGOS DE DEUDA</span><strong style="color:var(--lila)">${S(r.pagos_deuda)}</strong></div>` : ""}
+    ${Number(r.pagos_deuda) || Number(r.aportes_socios)
+      ? `<div class="cifra"><span>QUEDÓ EN CAJA</span><strong style="color:${Number(r.caja)>=0?"var(--verde)":"var(--alerta)"}">${S(r.caja)}</strong></div>` : ""}`;
 
   const {data: pend} = await sb.from("v_renta_pendiente").select("*");
   $("alertas").innerHTML = (pend && pend.length)
@@ -1293,8 +1296,15 @@ async function pintarResumen(){
     </div>
     <div class="tarjeta">
       <h4>Últimos meses</h4>
-      <div class="tabla-scroll">${tabla(["Mes","Ingresos","Egresos","Comisión","Utilidad"],
-        (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision), S(m.utilidad)]), [1,2,3,4])}</div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">
+        La utilidad operativa mide solo el negocio de alquileres. Los pagos de deuda salen aparte,
+        porque no son un gasto: bajan la caja y bajan lo que se debe.</p>
+      <div class="tabla-scroll">${tabla(
+        ["Mes","Ingresos","Gastos","Comisión","Utilidad operativa","Pagos de deuda","Quedó en caja"],
+        (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision),
+          `<strong style="color:${Number(m.utilidad)>=0?"var(--verde)":"var(--alerta)"}">${S(m.utilidad)}</strong>`,
+          Number(m.pagos_deuda) ? S(m.pagos_deuda) : "—",
+          S(m.caja)]), [1,2,3,4,5,6])}</div>
     </div>`;
 }
 
