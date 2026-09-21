@@ -464,21 +464,38 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v15 · arranque</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v16</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
+<!-- config.js es opcional: si existe, sus valores mandan sobre los del index -->
+<script src="config.js" onerror="void 0"></script>
 <script>
 // ---------------------------------------------------------------
 // CONFIGURACIÓN — falta pegar la anon key (Project Settings > API)
 // ---------------------------------------------------------------
-// La configuración vive en config.js, al lado de este archivo.
-// Si por lo que sea no cargó, la página entra en modo demostración
-// en vez de romperse.
-const CFG = window.CT_CONFIG || {};
+// ---------------------------------------------------------------
+// CONFIGURACIÓN
+// ---------------------------------------------------------------
+// Estos dos valores son públicos por diseño: el navegador los
+// necesita para hablar con Supabase, así que siempre viajan al
+// visitante. Lo que protege los datos son las políticas RLS de
+// la base, no esconder esta llave.
+//
+// Aquí NUNCA va la Secret key (service_role) de Supabase, ni el
+// webhook de Google Chat. Esos viven como secrets en Supabase.
+//
+// Si algún día existe un config.js al lado de este archivo, sus
+// valores mandan sobre estos. Si no existe, la página funciona
+// igual: no depende de él.
+// ---------------------------------------------------------------
+const CFG_POR_DEFECTO = {
+  SUPABASE_URL:  "https://htbtuebxjubxibbtewqn.supabase.co",
+  SUPABASE_ANON: "sb_publishable_TjskSlj2Q78pMBDnp2AFUA_NBCdxzD3"
+};
+const CFG = Object.assign({}, CFG_POR_DEFECTO, window.CT_CONFIG || {});
 const SUPABASE_URL  = CFG.SUPABASE_URL  || "";
 const SUPABASE_ANON = CFG.SUPABASE_ANON || "";
 
@@ -586,7 +603,10 @@ async function entrar(){
   $("aviso").textContent = "";
   if (!email || !clave) { $("aviso").textContent = "Falta el correo o la contraseña."; return; }
 
-  if (!conectado) { abrirDivisiones({nombre:email.split("@")[0], rol:"super_admin"}); return; }
+  if (!conectado) {
+    $("aviso").textContent = "La página no tiene la configuración de Supabase. Avisa a quien la administra.";
+    return;
+  }
 
   $("btn-entrar").disabled = true;
   const {data, error} = await sb.auth.signInWithPassword({email, password: clave});
