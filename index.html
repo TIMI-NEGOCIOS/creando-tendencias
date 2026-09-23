@@ -303,6 +303,18 @@
   .cifra.abonado strong{color:var(--verde)}
   .oculta-pestana{border-style:dashed;color:var(--gris-claro)}
 
+  /* interruptor de recordatorio por inquilino */
+  .campana{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    color:var(--gris-claro);border:1px solid transparent;transition:.2s}
+  .campana:hover{background:var(--lila-velo);color:var(--morado-hondo)}
+  .campana.viva{color:var(--morado);background:var(--lila-velo);border-color:var(--lila)}
+  .campana svg{width:16px;height:16px}
+
+  /* avisos suaves de inquilino en el calendario */
+  .punto.suave{opacity:.62;font-weight:400;border:1px dashed rgba(255,255,255,.55)}
+  .leyenda-cal{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--gris-claro);margin:0 0 12px}
+  .leyenda-cal b{font-weight:400;color:var(--gris)}
+
   footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
     display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
@@ -464,7 +476,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v17 · deuda aparte</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v19 · avisos</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1585,6 +1597,8 @@ window.borrarConexion = async (id) => {
 // ===============================================================
 const IC = {
   lapiz:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+  campana:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15V10a6 6 0 1 0-12 0v5l-1.5 2.5h15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  campanaOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15V10a6 6 0 0 0-8.4-5.5"/><path d="M6 10v5l-1.5 2.5h12"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M4 3l16 18"/></svg>',
   info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg>',
   archivar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3z"/><path d="M5 10v9h14v-9"/><path d="M10 14h4"/></svg>',
   volverArriba:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 5 5v4"/></svg>',
@@ -1630,6 +1644,10 @@ async function cargarAlq(){
 async function refrescarAlq(){
   document.querySelectorAll("[data-pa]").forEach(b => b.classList.toggle("viva", b.dataset.pa === pestAlq));
   if (conectado) await cargarMaestros();
+  if (conectado && !Object.keys(propsColor).length) {
+    const {data} = await sb.from("config_propiedad").select("propiedad, color");
+    propsColor = Object.fromEntries((data||[]).map(p => [p.propiedad, p.color]));
+  }
   $("flotante").classList.toggle("oculto", pestAlq !== "inquilinos");
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
   await cargarAlq();
@@ -1651,6 +1669,12 @@ function pintarInquilinos(){
     <tr>
       <td data-col="Acciones"><span class="acc">
         <button onclick="fichaInquilino(${q.id})" title="Editar">${IC.lapiz}</button>
+        <button class="campana ${q.recordatorio_activo ? "viva" : ""}"
+          data-avisar="${q.id}" data-estado="${q.recordatorio_activo ? 1 : 0}"
+          title="${q.recordatorio_activo
+            ? "Aviso encendido · se le recuerda antes de su día de pago"
+            : "Aviso apagado · clic para encenderlo"}">
+          ${q.recordatorio_activo ? IC.campana : IC.campanaOff}</button>
         <button onclick="verAcuerdo(${q.id})" title="Ver contrato">${IC.info}</button>
         ${q.activo
           ? `<button class="peligro" onclick="desactivarInquilino(${q.id})" title="Pasar a inactivos">${IC.tacho}</button>`
@@ -1690,6 +1714,15 @@ function pintarInquilinos(){
       </div>
     </div>`;
 }
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-avisar]");
+  if (!b) return;
+  const encender = b.dataset.estado !== "1";
+  const {error} = await sb.from("inquilinos")
+    .update({recordatorio_activo: encender}).eq("id", Number(b.dataset.avisar));
+  if (error) alert("No se pudo cambiar: " + error.message); else refrescarAlq();
+});
 
 window.verAcuerdo = async (id) => {
   const {data: q} = await sb.from("inquilinos")
@@ -2093,17 +2126,33 @@ function calendarioAvisos(){
     const esHoy = d === hoy.getDate();
     celdas += `<div class="dia ${lista.length ? "con-aviso" : ""} ${esHoy ? "hoy" : ""}">
       <span class="n">${d}</span>
-      ${lista.slice(0,3).map(a =>
-        `<span class="punto" title="${esc(a.inquilino)} · ${esc(a.concepto)} · vence ${a.vence}">
-          ${esc(a.propiedad)} ${Math.ceil(Number(a.monto))}</span>`).join("")}
+      ${lista.slice(0,3).map(a => {
+        const col = a.color_casa || colorCasa(a.propiedad);
+        const suave = a.origen === "inquilino";
+        return `<span class="punto ${suave ? "suave" : ""}" style="background:${col}"
+          title="${suave ? "alquiler · " : ""}${esc(a.inquilino)} · ${esc(a.propiedad)}${a.habitacion ? " hab. " + esc(a.habitacion) : ""} · ${esc(a.concepto)} · vence ${a.vence}">
+          ${esc(a.propiedad)} ${Math.ceil(Number(a.monto))}</span>`;
+      }).join("")}
       ${lista.length > 3 ? `<span class="n">+${lista.length - 3} más</span>` : ""}
     </div>`;
   }
 
+  const casas = [...new Set(datos.avisos.map(a => a.propiedad).filter(Boolean))].sort();
+  const deInquilinos = datos.avisos.filter(a => a.origen === "inquilino").length;
+
   return `<div class="tarjeta">
     <h4>Avisos de ${meses[mes]} ${anio}</h4>
     <p class="vacio" style="text-align:left;padding:0 0 10px">
-      Se arman solos desde los días de pago que registraste. ${datos.avisos.length} aviso(s) programado(s) en total.</p>
+      Se arman solos desde los días de pago. ${datos.avisos.length} aviso(s) en total${deInquilinos ? `, ${deInquilinos} de alquiler` : ""}.</p>
+    <div class="leyenda-cal">
+      ${casas.map(c => {
+        const col = colorCasa(c);
+        return `<span class="chip" style="color:${col};background:${col}1A;border-color:${col}33"><i></i>${esc(c)}</span>`;
+      }).join("")}
+      <b>·</b>
+      <span class="punto" style="background:var(--gris-claro)">servicios</span>
+      <span class="punto suave" style="background:var(--gris-claro)">alquileres</span>
+    </div>
     <div class="calendario">
       ${["LUN","MAR","MIÉ","JUE","VIE","SÁB","DOM"].map(d => `<div class="dia-cab">${d}</div>`).join("")}
       ${celdas}
