@@ -312,6 +312,12 @@
 
   /* avisos suaves de inquilino en el calendario */
   .punto.suave{opacity:.62;font-weight:400;border:1px dashed rgba(255,255,255,.55)}
+  .nav-mes{display:flex;align-items:center;gap:10px}
+  .nav-mes button{width:32px;height:32px;border-radius:10px;border:1px solid var(--linea);
+    display:grid;place-items:center;color:var(--gris);transition:.2s}
+  .nav-mes button:hover{border-color:var(--lila);color:var(--morado-hondo);background:var(--lila-velo)}
+  .nav-mes button svg{width:15px;height:15px}
+  .nav-mes .hoy-btn{width:auto;padding:0 14px;font-size:12.5px}
   .leyenda-cal{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--gris-claro);margin:0 0 12px}
   .leyenda-cal b{font-weight:400;color:var(--gris)}
 
@@ -476,7 +482,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v19 · avisos</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v20 · calendario</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1610,6 +1616,7 @@ let filtroConcepto = "";
 let verInactivos = {inq:false, prop:false};
 let vistaPagos = "propiedad";
 let mesCumplimiento = new Date().toISOString().slice(0,7);
+let mesCalendario = new Date().toISOString().slice(0,7);
 let datos = {props:[], inq:[], pagos:[], cx:[], rec:[]};
 
 async function modAlquileres(){
@@ -1636,7 +1643,7 @@ async function cargarAlq(){
     sb.from("conexiones").select("id, nombre"),
     sb.from("recordatorios").select("*").order("id"),
     sb.from("pagos_propiedad").select("*"),
-    sb.from("v_calendario_avisos").select("*")
+    sb.rpc("calendario_mes", {p_mes: mesCalendario + "-01"})
   ]);
   datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[], pagosProp:pp.data||[], avisos:cal.data||[]};
 }
@@ -2104,18 +2111,19 @@ window.fichaPropiedad = (nombre) => {
 
 // ---------- pestaña recordatorios ----------
 function calendarioAvisos(){
-  const hoy = new Date();
-  const anio = hoy.getFullYear(), mes = hoy.getMonth();
-  const primero = new Date(anio, mes, 1);
+  const [anio, mesNum] = mesCalendario.split("-").map(Number);
+  const mes = mesNum - 1;
   const dias = new Date(anio, mes + 1, 0).getDate();
-  const arranque = (primero.getDay() + 6) % 7;   // lunes primero
+  const arranque = (new Date(anio, mes, 1).getDay() + 6) % 7;   // lunes primero
   const meses = ["enero","febrero","marzo","abril","mayo","junio","julio",
                  "agosto","setiembre","octubre","noviembre","diciembre"];
+  const hoyISO = new Date().toISOString().slice(0,10);
+  const esMesActual = mesCalendario === hoyISO.slice(0,7);
 
   const porDia = {};
   datos.avisos.forEach(a => {
     const d = a.fecha_aviso;
-    if (!d.startsWith(`${anio}-${String(mes+1).padStart(2,"0")}`)) return;
+    if (!d.startsWith(mesCalendario)) return;
     (porDia[Number(d.slice(8,10))] ||= []).push(a);
   });
 
@@ -2123,8 +2131,9 @@ function calendarioAvisos(){
   for (let i = 0; i < arranque; i++) celdas += `<div class="dia fuera"></div>`;
   for (let d = 1; d <= dias; d++) {
     const lista = porDia[d] || [];
-    const esHoy = d === hoy.getDate();
-    celdas += `<div class="dia ${lista.length ? "con-aviso" : ""} ${esHoy ? "hoy" : ""}">
+
+    const fechaCelda = `${anio}-${String(mes+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    celdas += `<div class="dia ${lista.length ? "con-aviso" : ""} ${fechaCelda === hoyISO ? "hoy" : ""}">
       <span class="n">${d}</span>
       ${lista.slice(0,3).map(a => {
         const col = a.color_casa || colorCasa(a.propiedad);
@@ -2141,7 +2150,16 @@ function calendarioAvisos(){
   const deInquilinos = datos.avisos.filter(a => a.origen === "inquilino").length;
 
   return `<div class="tarjeta">
-    <h4>Avisos de ${meses[mes]} ${anio}</h4>
+    <div class="cabecera-tarjeta">
+      <h4>Avisos de ${meses[mes]} ${anio}</h4>
+      <div class="nav-mes">
+        <button data-mes-cal="-1" title="Mes anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        ${esMesActual ? "" : `<button class="hoy-btn" data-mes-cal="0">Volver a hoy</button>`}
+        <button data-mes-cal="1" title="Mes siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
     <p class="vacio" style="text-align:left;padding:0 0 10px">
       Se arman solos desde los días de pago. ${datos.avisos.length} aviso(s) en total${deInquilinos ? `, ${deInquilinos} de alquiler` : ""}.</p>
     <div class="leyenda-cal">
@@ -2159,6 +2177,20 @@ function calendarioAvisos(){
     </div>
   </div>`;
 }
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mes-cal]");
+  if (!b) return;
+  const paso = Number(b.dataset.mesCal);
+  if (paso === 0) {
+    mesCalendario = new Date().toISOString().slice(0,7);
+  } else {
+    const [a, m] = mesCalendario.split("-").map(Number);
+    const d = new Date(a, m - 1 + paso, 1);
+    mesCalendario = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  }
+  refrescarAlq();
+});
 
 function pintarRecordatorios(){
   const horas = n => Array.from({length:24}, (_,h) =>
