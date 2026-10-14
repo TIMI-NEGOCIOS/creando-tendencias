@@ -126,6 +126,11 @@
     font-size:12px;white-space:nowrap;border:1px solid transparent}
   .chip i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;opacity:.9}
   .borrar{color:var(--gris-claro);font-size:13px}
+  tr.anulada>td{opacity:.42;text-decoration:line-through;text-decoration-color:var(--alerta)}
+  tr.anulada>td:last-child{opacity:1;text-decoration:none}
+  .sello-anulado{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;
+    font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;
+    color:#8A3A3A;background:#F7E0E0;vertical-align:middle}
   .borrar:hover{color:var(--alerta)}
 
 
@@ -492,7 +497,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v21 · devoluciones</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v22 · nada se borra</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -932,7 +937,9 @@ async function pintarIngresos(){
     {campo:"concepto", titulo:"Concepto", tipo:"texto"},
     {campo:"monto", titulo:"Monto", tipo:"numero"}
   ];
-  const filas = aplicarFiltros(data||[], columnas);
+  const todos = data || [];
+  const filas = aplicarFiltros(vivos(todos), columnas);
+  const anulados = todos.filter(r => r.anulado).length;
 
   $("contenido").innerHTML = `
     <div class="tarjeta">
@@ -954,25 +961,27 @@ async function pintarIngresos(){
         <button class="primario" onclick="guardarIngreso()">Guardar</button>
       </div>
     </div>
-    ${barraFiltros(columnas, data||[])}
+    ${barraFiltros(columnas, vivos(todos))}
     <div class="tarjeta">
-      <h4>Pagos del mes · ${filas.length}${filas.length !== (data||[]).length ? ` de ${(data||[]).length}` : ""}</h4>
+      <h4>Pagos del mes · ${filas.length}${filas.length !== vivos(todos).length ? ` de ${vivos(todos).length}` : ""}</h4>
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Hab.","Inquilino","Concepto","Monto",
          {html:(verSocios?"Comisión ▾":"Comisión ▸"), clase:"plegable-socios", datos:'data-plegar="socios"'},
          ...(verSocios ? ["Magalli","Matías"] : []),
          "Método","Nota",""],
-        filas.map(r => [r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
+        filas.map(r => ({clase: r.anulado ? "anulada" : "", celdas: [
+          r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
           esc(r.inquilino), chipConcepto(r.concepto||"alquiler", "ingreso"), S(r.monto||r.renta),
           celdaEstado(r.id, "comision_estado", r.comision_estado, r.comision),
           ...(verSocios ? [
             celdaEstado(r.id, "magalli_estado", r.magalli_estado, r.pago_magalli ?? r.comision/2),
             celdaEstado(r.id, "matias_estado",  r.matias_estado,  r.pago_matias  ?? r.comision/2)
           ] : []),
-          esc(r.metodo_pago||"—"), esc(r.nota||""),
+          esc(r.metodo_pago||"—"), esc(r.nota||"") + selloAnulado(r),
           `<span class="acc"><button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
-           <button class="peligro" onclick="borrar('ing_alquiler',${r.id})" title="Eliminar">${IC.tacho}</button></span>`]),
+           ${botonAnular("ing_alquiler", r, "pago")}</span>`]})),
         verSocios ? [5,6,7,8] : [5,6])}</div>
+      <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
     </div>`;
 }
 
@@ -1044,7 +1053,9 @@ async function pintarEgresos(){
     {campo:"responsable", titulo:"Quién pagó", tipo:"texto"},
     {campo:"monto", titulo:"Monto", tipo:"numero"}
   ];
-  const filas = aplicarFiltros(data||[], columnas);
+  const todos = data || [];
+  const filas = aplicarFiltros(vivos(todos), columnas);
+  const anuladosEgr = todos.filter(r => r.anulado).length;
 
   $("contenido").innerHTML = `
     <div class="tarjeta">
@@ -1062,7 +1073,7 @@ async function pintarEgresos(){
         <button class="primario" onclick="guardarEgreso()">Guardar</button>
       </div>
     </div>
-    ${barraFiltros(columnas, data||[])}
+    ${barraFiltros(columnas, vivos(todos))}
     ${porDevolver?.length ? `<div class="tarjeta">
       <h4>Por devolver</h4>
       <p class="vacio" style="text-align:left;padding:0 0 10px">
@@ -1079,10 +1090,11 @@ async function pintarEgresos(){
         (porCat||[]).map(c => [chipConcepto(c.categoria, "servicio"), c.movimientos, S(c.total)]), [2])}</div>
     </div>
     <div class="tarjeta">
-      <h4>Gastos del mes · ${filas.length}</h4>
+      <h4>Gastos del mes · ${filas.length}${filas.length !== vivos(todos).length ? ` de ${vivos(todos).length}` : ""}</h4>
       <div class="tabla-scroll">${tabla(
         ["Fecha","Propiedad","Categoría","Monto","Quién pagó","Descripción",""],
-        filas.map(r => [r.fecha, esc(r.propiedad||"—"),
+        filas.map(r => ({clase: r.anulado ? "anulada" : "", celdas: [
+          r.fecha, esc(r.propiedad||"—"),
           chipConcepto(r.categoria_texto||r.categoria, "servicio"),
           `<span class="celda-monto">
              ${r.responsable
@@ -1094,10 +1106,11 @@ async function pintarEgresos(){
                : ""}
              <span>${S(r.monto)}</span>
            </span>`,
-          esc(r.responsable||""), esc(r.descripcion||""),
+          esc(r.responsable||""), esc(r.descripcion||"") + selloAnulado(r),
           `<span class="acc"><button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
-           <button class="peligro" onclick="borrar('egr_alquiler',${r.id})" title="Eliminar">${IC.tacho}</button></span>`]),
+           ${botonAnular("egr_alquiler", r, "gasto")}</span>`]})),
         [3])}</div>
+      <div class="pie-tarjeta">${botonVerAnulados(anuladosEgr)}</div>
     </div>`;
 }
 
@@ -1158,8 +1171,10 @@ window.editarEgreso = async (id) => {
 };
 
 async function pintarDeudas(){
-  const {data, error} = await sb.from("v_deudas_saldo").select("*");
+  const {data: crudo, error} = await sb.from("v_deudas_saldo").select("*");
   if (error) { $("contenido").innerHTML = `<div class="tarjeta"><p class="vacio">${esc(error.message)}</p></div>`; return; }
+  const data = vivos(crudo);
+  const anuladas = (crudo||[]).filter(r => r.anulado).length;
 
   $("contenido").innerHTML = `
     <div class="tarjeta">
@@ -1175,14 +1190,14 @@ async function pintarDeudas(){
       </div>
     </div>
     <div class="tarjeta">
-      <h4>Deudas · ${data?.length || 0}</h4>
+      <h4>Deudas · ${data.length}</h4>
       <div class="tabla-scroll">
-        ${data?.length ? `<table class="tabla-tarjetas"><thead><tr>
+        ${data.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th>Socio</th><th>Concepto</th><th>Propiedad</th><th class="num">Original</th>
           <th class="num">Abonado</th><th class="num">Saldo</th><th>Desde</th><th>Estado</th><th></th>
         </tr></thead><tbody>
-        ${data.map(r => `<tr>
-          <td data-col="Socio">${esc(r.deudor||"—")}</td>
+        ${data.map(r => `<tr class="${r.anulado ? "anulada" : ""}">
+          <td data-col="Socio">${esc(r.deudor||"—")}${selloAnulado(r)}</td>
           <td data-col="Concepto">${esc(r.concepto||"")}</td>
           <td data-col="Propiedad">${esc(r.propiedad||"—")}</td>
           <td data-col="Original" class="num">${S(r.monto_original)}</td>
@@ -1199,11 +1214,12 @@ async function pintarDeudas(){
             <button data-deuda-abonos="${r.id}" title="Ver y editar los abonos">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 7v7"/><circle cx="12" cy="17.5" r=".6" fill="currentColor"/></svg></button>
             <button data-deuda-editar="${r.id}" title="Editar la deuda">${IC.lapiz}</button>
-            <button class="peligro" data-deuda-borrar="${r.id}" title="Eliminar la deuda">${IC.tacho}</button>
+            ${botonAnular("deudas", r, "deuda")}
           </span></td>
         </tr>`).join("")}
         </tbody></table>` : `<p class="vacio">Todavía no hay deudas registradas.</p>`}
       </div>
+      <div class="pie-tarjeta">${botonVerAnulados(anuladas)}</div>
     </div>`;
 }
 
@@ -1227,13 +1243,6 @@ document.addEventListener("click", async (e) => {
   if (d.deudaAbonos)  return fichaListaAbonos(Number(d.deudaAbonos));
   if (d.deudaEditar)  return fichaDeuda(Number(d.deudaEditar));
 
-  if (d.deudaBorrar) {
-    const id = Number(d.deudaBorrar);
-    if (!confirm("¿Eliminar esta deuda? Se borran también sus abonos.")) return;
-    if (!confirm("Última vez: no se puede deshacer. ¿Eliminar?")) return;
-    const {error} = await sb.from("deudas").delete().eq("id", id);
-    if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
-  }
 });
 
 function fichaAbono(deudaId){
@@ -1255,16 +1264,17 @@ function fichaAbono(deudaId){
 }
 
 async function fichaListaAbonos(deudaId){
-  const {data} = await sb.from("abonos").select("*").eq("deuda_id", deudaId).order("fecha", {ascending:false});
-  const total = (data||[]).reduce((t,a) => t + Number(a.monto), 0);
+  const {data: crudo} = await sb.from("abonos").select("*").eq("deuda_id", deudaId).order("fecha", {ascending:false});
+  const data = vivos(crudo);
+  const total = data.filter(a => !a.anulado).reduce((t,a) => t + Number(a.monto), 0);
   abrirFicha("Abonos entregados", `
     <div class="tabla-scroll">
       ${data?.length ? `<table><thead><tr><th>Fecha</th><th class="num">Monto</th><th>Medio</th><th>Nota</th><th></th></tr></thead><tbody>
-        ${data.map(a => `<tr>
-          <td>${a.fecha}</td><td class="num">${S(a.monto)}</td><td>${esc(a.medio||"—")}</td><td>${esc(a.nota||"")}</td>
+        ${data.map(a => `<tr class="${a.anulado ? "anulada" : ""}">
+          <td>${a.fecha}</td><td class="num">${S(a.monto)}</td><td>${esc(a.medio||"—")}</td><td>${esc(a.nota||"")}${selloAnulado(a)}</td>
           <td><span class="acc">
             <button data-abono-editar="${a.id}" title="Editar">${IC.lapiz}</button>
-            <button class="peligro" data-abono-borrar="${a.id}" title="Eliminar">${IC.tacho}</button>
+            ${botonAnular("abonos", a, "abono")}
           </span></td></tr>`).join("")}
       </tbody></table>` : `<p class="vacio">Esta deuda todavía no tiene abonos.</p>`}
     </div>
@@ -1273,17 +1283,8 @@ async function fichaListaAbonos(deudaId){
 }
 
 document.addEventListener("click", async (e) => {
-  const b = e.target.closest("button[data-abono-editar],button[data-abono-borrar]");
+  const b = e.target.closest("button[data-abono-editar]");
   if (!b) return;
-
-  if (b.dataset.abonoBorrar) {
-    const id = Number(b.dataset.abonoBorrar);
-    if (!confirm("¿Eliminar este abono?")) return;
-    const {error} = await sb.from("abonos").delete().eq("id", id);
-    if (error) { alert("No se pudo eliminar: " + error.message); return; }
-    cerrarFicha(); refrescar();
-    return;
-  }
 
   const id = Number(b.dataset.abonoEditar);
   const {data: a} = await sb.from("abonos").select("*").eq("id", id).single();
@@ -1381,7 +1382,9 @@ function tabla(cabeceras, filas, numericas = []){
         title="${c.titulo || "Clic para cambiar el estado"}">${c.html}</td>`;
     return `<td class="${num}">${c}</td>`;
   };
-  const tr = filas.map(f => "<tr>" + f.map(celda).join("") + "</tr>").join("");
+  const tr = filas.map(f => Array.isArray(f)
+    ? "<tr>" + f.map(celda).join("") + "</tr>"
+    : `<tr class="${f.clase||""}">` + f.celdas.map(celda).join("") + "</tr>").join("");
   return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
 }
 
@@ -1650,12 +1653,15 @@ const IC = {
   info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg>',
   archivar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3z"/><path d="M5 10v9h14v-9"/><path d="M10 14h4"/></svg>',
   volverArriba:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 5 5v4"/></svg>',
+  anular:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6.2 17.8L17.8 6.2"/></svg>',
+  descarga:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="M8 10.5l4 4 4-4"/><path d="M5 19h14"/></svg>',
   tacho:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>'
 };
 let pestAlq = "inquilinos";
 let plegadas = new Set(["inquilino"]);   // la columna de inquilinos arranca plegada
 let filtroConcepto = "";
 let verInactivos = {inq:false, prop:false};
+let verAnulados = false;
 let vistaPagos = "propiedad";
 let mesCumplimiento = new Date().toISOString().slice(0,7);
 let mesCalendario = new Date().toISOString().slice(0,7);
@@ -1760,9 +1766,51 @@ function pintarInquilinos(){
           ${verInactivos.inq ? IC.volverArriba : IC.archivar}
           ${verInactivos.inq ? "Volver a los activos" : `Inactivos (${inactivos})`}
         </button>
+        <button class="secundario" onclick="bajarMaestroInquilinos()">
+          ${IC.descarga} Descargar el sheet
+        </button>
       </div>
     </div>`;
 }
+
+// ---------------------------------------------------------------
+// EL SHEET DE INQUILINOS
+// Se arma en el momento, con lo que hay en la base en ese
+// instante. Se abre directo en Excel o en Google Sheets.
+// ---------------------------------------------------------------
+window.bajarMaestroInquilinos = async () => {
+  const {data, error} = await sb.from("v_maestro_inquilinos").select("*");
+  if (error) { alert("No se pudo armar el sheet: " + error.message); return; }
+  if (!data?.length) { alert("Todavía no hay inquilinos que exportar."); return; }
+
+  const TITULOS = {
+    estado:"Estado", casa:"Casa", hab:"Habitación", nombre:"Nombre", dni:"DNI",
+    telefono:"Teléfono", dia_de_pago:"Día de pago", alquiler:"Alquiler", garantia:"Garantía",
+    contrato_desde:"Contrato desde", contrato_hasta:"Contrato hasta",
+    dias_para_vencer:"Días para vencer", metodo:"Método de pago", cuotas:"Cuotas",
+    mascotas:"Mascotas", aviso:"Aviso activo", acuerdos:"Acuerdos", notas:"Notas",
+    pagado_historico:"Pagado en total", ultimo_pago:"Último pago"
+  };
+  const claves = Object.keys(TITULOS).filter(k => k in data[0]);
+
+  // Punto y coma: así Excel en español separa las columnas solo.
+  const campo = v => {
+    if (v === null || v === undefined) return "";
+    const t = String(v).replace(/"/g, '""');
+    return /[";\n\r]/.test(t) ? `"${t}"` : t;
+  };
+  const lineas = [claves.map(k => campo(TITULOS[k])).join(";")]
+    .concat(data.map(f => claves.map(k => campo(f[k])).join(";")));
+
+  // El BOM es lo que hace que Excel respete las tildes y la ñ.
+  const csv = "\uFEFF" + lineas.join("\r\n");
+  const hoy = new Date().toISOString().slice(0,10);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  a.download = `Inquilinos - Creando Hogares - ${hoy}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+};
 
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-avisar]");
@@ -1868,14 +1916,6 @@ window.fichaInquilino = (id) => {
                          : await sb.from("inquilinos").insert(fila);
       return error ? error.message : null;
     });
-};
-
-window.borrarInquilino = async (id) => {
-  const q = datos.inq.find(x => x.id === id);
-  if (!confirm(`¿Eliminar a ${q.nombre}?`)) return;
-  if (!confirm(`Última vez: se borran también sus pagos. ¿Eliminar a ${q.nombre} de forma definitiva?`)) return;
-  const {error} = await sb.from("inquilinos").delete().eq("id", id);
-  if (error) alert(error.message); else refrescarAlq();
 };
 
 // ---------- pestaña pagos ----------
@@ -2295,7 +2335,7 @@ function abrirFicha(titulo, campos, alGuardar, alBorrar){
     ${campos}
     <p class="aviso" id="ficha-aviso"></p>
     <div class="acciones">
-      ${alBorrar ? `<button class="atras" style="margin:0" id="ficha-borrar">Eliminar</button>` : ""}
+      ${alBorrar ? `<button class="atras" style="margin:0" id="ficha-borrar">Anular</button>` : ""}
       <button class="atras" style="margin:0" id="ficha-cancelar">Cancelar</button>
       <button class="primario" id="ficha-guardar">Guardar</button>
     </div>`;
@@ -2309,13 +2349,57 @@ function abrirFicha(titulo, campos, alGuardar, alBorrar){
     cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
   if (alBorrar) $("ficha-borrar").onclick = async () => {
-    if (!confirm("¿Eliminar este registro?")) return;
-    if (!confirm("Última vez: no se puede deshacer. ¿Eliminar?")) return;
+    if (!confirm("¿Anular este registro? Deja de contar en los totales, pero no se borra: lo puedes restaurar cuando quieras.")) return;
     const err = await alBorrar();
     if (err) { $("ficha-aviso").textContent = err; return; }
     cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
 }
+// ===============================================================
+// ANULAR EN LUGAR DE BORRAR
+// Nada se elimina de la base. Se marca como anulado: deja de
+// contar en los totales pero queda guardado, con quién lo anuló
+// y cuándo. Siempre se puede volver atrás.
+// ===============================================================
+const vivos = lista => (lista || []).filter(r => verAnulados || !r.anulado);
+const selloAnulado = r => r.anulado ? `<span class="sello-anulado">anulado</span>` : "";
+
+function botonAnular(tabla, r, queEs = "registro"){
+  return r.anulado
+    ? `<button data-anular="${tabla}:${r.id}" data-estado="1"
+         title="Anulado${r.anulado_en ? " el " + r.anulado_en.slice(0,10) : ""} · clic para restaurarlo">${IC.volverArriba}</button>`
+    : `<button class="peligro" data-anular="${tabla}:${r.id}" data-estado="0"
+         title="Anular este ${queEs} · no se borra, queda guardado">${IC.anular}</button>`;
+}
+
+function botonVerAnulados(cuantos){
+  return `<button class="secundario" data-ver-anulados="1">
+    ${verAnulados ? IC.volverArriba : IC.archivar}
+    ${verAnulados ? "Ocultar los anulados" : `Ver anulados${cuantos ? " (" + cuantos + ")" : ""}`}</button>`;
+}
+
+document.addEventListener("click", async (e) => {
+  const v = e.target.closest("[data-ver-anulados]");
+  if (v) { verAnulados = !verAnulados; return (pestAlqVivo() ? refrescarAlq : refrescar)(); }
+
+  const b = e.target.closest("[data-anular]");
+  if (!b) return;
+  const [tabla, id] = b.dataset.anular.split(":");
+  const anulado = b.dataset.estado !== "1";
+
+  if (anulado && !confirm("¿Anular este registro? Deja de contar en los totales, pero no se borra: lo puedes restaurar cuando quieras.")) return;
+
+  const {data: sesion} = await sb.auth.getUser();
+  const fila = anulado
+    ? {anulado: true,  anulado_en: new Date().toISOString(), anulado_por: sesion?.user?.id || null}
+    : {anulado: false, anulado_en: null, anulado_por: null};
+
+  const {error} = await sb.from(tabla).update(fila).eq("id", Number(id));
+  if (error) { alert("No se pudo cambiar: " + error.message); return; }
+  cerrarFicha();
+  (pestAlqVivo() ? refrescarAlq : refrescar)();
+});
+
 const pestAlqVivo = () => !!document.querySelector("[data-pa]");
 const enAdmin = () => !$("pantalla-admin").classList.contains("oculto");
 const cerrarFicha = () => $("velo").classList.remove("abierto");
@@ -2335,7 +2419,7 @@ const hoyISO = () => {
 async function pintarBarraExpress(){
   const hoy = hoyISO();
   const {data} = await sb.from("movimientos_express").select("*").eq("fecha", hoy);
-  const mov = data || [];
+  const mov = (data || []).filter(m => !m.anulado);
   const entro = mov.filter(m => m.tipo === "ingreso").reduce((t,m) => t + Number(m.monto), 0);
   const salio = mov.filter(m => m.tipo === "egreso").reduce((t,m) => t + Number(m.monto), 0);
   const faltan = mov.filter(m => !m.destino_id).length;
@@ -2364,7 +2448,7 @@ async function pintarExpress(){
     sb.from("v_express_dia").select("*").gte("fecha", desde)
   ]);
 
-  const pend = (mov||[]).filter(m => !m.destino_id);
+  const pend = (mov||[]).filter(m => !m.destino_id && !m.anulado);
 
   $("contenido").innerHTML = `
     ${pend.length ? `<div class="alerta">
@@ -2375,17 +2459,17 @@ async function pintarExpress(){
       <p class="vacio" style="text-align:left;padding:0 0 10px">
         Lo que anotas aquí es provisional. Al ponerle el motivo pasa a Ingresos o a Egresos según el tipo.</p>
       <div class="tabla-scroll">
-        ${mov?.length ? `<table class="tabla-tarjetas"><thead><tr>
+        ${vivos(mov).length ? `<table class="tabla-tarjetas"><thead><tr>
           <th>Fecha</th><th>Tipo</th><th class="num">Monto</th><th>Motivo</th>
           <th>Propiedad</th><th>Estado</th><th></th></tr></thead><tbody>
-          ${mov.map(m => `<tr>
+          ${vivos(mov).map(m => `<tr class="${m.anulado ? "anulada" : ""}">
             <td data-col="Fecha">${m.fecha}</td>
             <td data-col="Tipo"><span class="chip" style="color:${m.tipo==="ingreso"?"#2E8B62":"#A8375F"};
               background:${m.tipo==="ingreso"?"#2E8B621A":"#A8375F1A"}"><i></i>${m.tipo}</span></td>
             <td data-col="Monto" class="num">${S(m.monto)}</td>
             <td data-col="Motivo" class="${m.destino_id ? "" : "falta-motivo"}"
                 ${m.destino_id ? "" : `data-exp-completar="${m.id}"`}>
-              ${m.motivo ? esc(m.motivo) : "poner motivo"}</td>
+              ${m.motivo ? esc(m.motivo) : "poner motivo"}${selloAnulado(m)}</td>
             <td data-col="Propiedad">${esc(m.propiedad||"—")}</td>
             <td data-col="Estado">${m.destino_id
               ? `<span class="chip" style="color:#1F6B4E;background:#D8F0E4"><i></i>en ${m.destino_tabla==="ing_alquiler"?"Ingresos":"Egresos"}</span>`
@@ -2394,10 +2478,11 @@ async function pintarExpress(){
               ${m.destino_id
                 ? `<button data-exp-devolver="${m.id}" title="Deshacer y devolver a la bandeja">${IC.volverArriba}</button>`
                 : `<button data-exp-completar="${m.id}" title="Completar y guardar">${IC.lapiz}</button>`}
-              <button class="peligro" data-exp-borrar="${m.id}" title="Eliminar">${IC.tacho}</button>
+              ${botonAnular("movimientos_express", m, "movimiento")}
             </span></td></tr>`).join("")}
         </tbody></table>` : `<p class="vacio">Todavía no hay movimientos exprés. Usa los botones de arriba.</p>`}
       </div>
+      <div class="pie-tarjeta">${botonVerAnulados((mov||[]).filter(m => m.anulado).length)}</div>
     </div>
     <div class="tarjeta">
       <h4>Por día</h4>
@@ -2427,12 +2512,6 @@ document.addEventListener("click", async (e) => {
     return;
   }
 
-  const bo = e.target.closest("button[data-exp-borrar]");
-  if (bo) {
-    if (!confirm("¿Eliminar este movimiento exprés?")) return;
-    const {error} = await sb.from("movimientos_express").delete().eq("id", Number(bo.dataset.expBorrar));
-    if (error) alert("No se pudo eliminar: " + error.message); else refrescar();
-  }
 });
 
 
@@ -2523,7 +2602,11 @@ async function fichaExpress(id, tipoNuevo){
       return error ? error.message : null;
     },
     id ? async () => {
-      const {error} = await sb.from("movimientos_express").delete().eq("id", id);
+      const {data: sesion} = await sb.auth.getUser();
+      const {error} = await sb.from("movimientos_express").update({
+        anulado: true, anulado_en: new Date().toISOString(),
+        anulado_por: sesion?.user?.id || null
+      }).eq("id", id);
       return error ? error.message : null;
     } : null);
 
@@ -2653,6 +2736,8 @@ async function pintarArranque(){
     sb.from("v_deuda_arranque_mensual").select("*"),
     sb.from("abonos_arranque").select("*").order("fecha", {ascending:false})
   ]);
+  const abonosVivos = vivos(abonos);
+  const abonosAnulados = (abonos||[]).filter(a => a.anulado).length;
   if (error) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">${esc(error.message)}</p></div>`; return; }
   if (!d) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Todavía no hay una deuda de arranque registrada.</p></div>`; return; }
 
@@ -2715,41 +2800,36 @@ async function pintarArranque(){
     </div>
 
     <div class="tarjeta">
-      <h4>Abonos · ${abonos?.length || 0}</h4>
+      <h4>Abonos · ${abonosVivos.length}</h4>
       <div class="tabla-scroll">
-        ${abonos?.length ? `<table class="tabla-tarjetas"><thead><tr>
+        ${abonosVivos.length ? `<table class="tabla-tarjetas"><thead><tr>
           <th>Fecha</th><th class="num">Monto</th><th>Medio</th><th>Quién</th><th>Nota</th><th></th>
         </tr></thead><tbody>
-        ${abonos.map(a => `<tr>
+        ${abonosVivos.map(a => `<tr class="${a.anulado ? "anulada" : ""}">
           <td data-col="Fecha">${a.fecha}</td>
           <td data-col="Monto" class="num">${S(a.monto)}</td>
           <td data-col="Medio">${esc(a.medio||"—")}</td>
           <td data-col="Quién">${esc(a.quien||"—")}</td>
-          <td data-col="Nota">${esc(a.nota||"")}</td>
+          <td data-col="Nota">${esc(a.nota||"")}${selloAnulado(a)}</td>
           <td data-col="Acciones"><span class="acc">
             <button data-arr-abono-editar="${a.id}" title="Editar">${IC.lapiz}</button>
-            <button class="peligro" data-arr-abono-borrar="${a.id}" title="Eliminar">${IC.tacho}</button>
+            ${botonAnular("abonos_arranque", a, "abono")}
           </span></td></tr>`).join("")}
         </tbody></table>` : `<p class="vacio">Todavía no hay abonos registrados.</p>`}
       </div>
+      <div class="pie-tarjeta">${botonVerAnulados(abonosAnulados)}</div>
     </div>`;
 }
 
 // ---- un solo manejador para toda la pestaña ----
 document.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-arr-abonar],[data-arr-editar],button[data-arr-abono-editar],button[data-arr-abono-borrar]");
+  const b = e.target.closest("[data-arr-abonar],[data-arr-editar],button[data-arr-abono-editar]");
   if (!b) return;
   const d = b.dataset;
 
   if (d.arrAbonar)      return fichaAbonoArranque(null, Number(d.arrAbonar));
   if (d.arrEditar)      return fichaDeudaArranque(Number(d.arrEditar));
   if (d.arrAbonoEditar) return fichaAbonoArranque(Number(d.arrAbonoEditar));
-
-  if (d.arrAbonoBorrar) {
-    if (!confirm("¿Eliminar este abono?")) return;
-    const {error} = await sb.from("abonos_arranque").delete().eq("id", Number(d.arrAbonoBorrar));
-    if (error) alert("No se pudo eliminar: " + error.message); else refrescarAlq();
-  }
 });
 
 async function fichaAbonoArranque(id, deudaId){
@@ -2779,7 +2859,11 @@ async function fichaAbonoArranque(id, deudaId){
       return error ? error.message : null;
     },
     id ? async () => {
-      const {error} = await sb.from("abonos_arranque").delete().eq("id", id);
+      const {data: sesion} = await sb.auth.getUser();
+      const {error} = await sb.from("abonos_arranque").update({
+        anulado: true, anulado_en: new Date().toISOString(),
+        anulado_por: sesion?.user?.id || null
+      }).eq("id", id);
       return error ? error.message : null;
     } : null);
 
