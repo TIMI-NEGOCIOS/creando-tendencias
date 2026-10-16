@@ -257,6 +257,15 @@
   .mini:hover{border-color:var(--lila);color:var(--morado-hondo);background:var(--lila-velo)}
   .mini svg{width:16px;height:16px}
   .cabecera-tarjeta{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  .plegable>h4{display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;user-select:none}
+  .plegable>h4:hover{color:var(--morado-hondo)}
+  .plegable>h4 .flecha{width:15px;height:15px;flex:0 0 15px;color:var(--gris-claro);
+    transition:transform .18s ease}
+  .plegable.abierta>h4 .flecha{transform:rotate(90deg)}
+  .plegable>h4 .pista{margin-left:auto;font-family:var(--texto);font-size:12px;
+    font-weight:400;letter-spacing:0;color:var(--gris-claro);text-transform:none}
+  .plegable .cuerpo{display:none;margin-top:16px}
+  .plegable.abierta .cuerpo{display:block}
   .cabecera-tarjeta h4{margin:0}
 
   /* enlace discreto de administración */
@@ -497,7 +506,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v23 · propiedades vivas</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v24 · pantalla despejada</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1092,21 +1101,19 @@ async function pintarEgresos(){
       </div>
     </div>
     ${barraFiltros(columnas, vivos(todos))}
-    ${porDevolver?.length ? `<div class="tarjeta">
-      <h4>Por devolver</h4>
-      <p class="vacio" style="text-align:left;padding:0 0 10px">
-        Gastos que alguien adelantó de su bolsillo y el negocio todavía no le ha devuelto.</p>
-      <div class="tabla-scroll">${tabla(["Persona","Gastos","Total","Desde"],
-        porDevolver.map(p => [esc(p.persona),
-          p.gastos,
-          `<strong style="color:var(--alerta)">${S(p.total)}</strong>`,
-          p.desde]), [1,2])}</div>
-    </div>` : ""}
-    <div class="tarjeta">
-      <h4>Por categoría</h4>
-      <div class="tabla-scroll">${tabla(["Categoría","Movimientos","Total"],
-        (porCat||[]).map(c => [chipConcepto(c.categoria, "servicio"), c.movimientos, S(c.total)]), [2])}</div>
-    </div>
+    ${porDevolver?.length ? tarjetaPlegable("devolver", "Por devolver",
+      S(porDevolver.reduce((t,p) => t + Number(p.total), 0)) + " a " + porDevolver.length + " persona(s)",
+      `<p class="vacio" style="text-align:left;padding:0 0 10px">
+         Gastos que alguien adelantó de su bolsillo y el negocio todavía no le ha devuelto.</p>
+       <div class="tabla-scroll">${tabla(["Persona","Gastos","Total","Desde"],
+         porDevolver.map(p => [esc(p.persona),
+           p.gastos,
+           `<strong style="color:var(--alerta)">${S(p.total)}</strong>`,
+           p.desde]), [1,2])}</div>`) : ""}
+    ${tarjetaPlegable("categoria", "Por categoría",
+      (porCat||[]).length + " categoría(s)",
+      `<div class="tabla-scroll">${tabla(["Categoría","Movimientos","Total"],
+         (porCat||[]).map(c => [chipConcepto(c.categoria, "servicio"), c.movimientos, S(c.total)]), [2])}</div>`)}
     <div class="tarjeta">
       <h4>Gastos del mes · ${filas.length}${filas.length !== vivos(todos).length ? ` de ${vivos(todos).length}` : ""}</h4>
       <div class="tabla-scroll">${tabla(
@@ -2416,6 +2423,32 @@ document.addEventListener("click", async (e) => {
   if (error) { alert("No se pudo cambiar: " + error.message); return; }
   cerrarFicha();
   (pestAlqVivo() ? refrescarAlq : refrescar)();
+});
+
+// ---------------------------------------------------------------
+// TARJETAS PLEGABLES
+// Las que son de consulta ocasional arrancan cerradas, para que la
+// pantalla muestre primero lo que se usa todos los días.
+// ---------------------------------------------------------------
+const abiertas = new Set();
+
+function tarjetaPlegable(clave, titulo, pista, cuerpo){
+  const abierta = abiertas.has(clave);
+  return `<div class="tarjeta plegable ${abierta ? "abierta" : ""}">
+    <h4 data-plegable="${clave}">
+      <svg class="flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      ${titulo}${pista ? `<span class="pista">${pista}</span>` : ""}
+    </h4>
+    <div class="cuerpo">${cuerpo}</div>
+  </div>`;
+}
+
+document.addEventListener("click", e => {
+  const h = e.target.closest("[data-plegable]");
+  if (!h) return;
+  const clave = h.dataset.plegable;
+  abiertas.has(clave) ? abiertas.delete(clave) : abiertas.add(clave);
+  h.parentElement.classList.toggle("abierta");
 });
 
 const pestAlqVivo = () => !!document.querySelector("[data-pa]");
