@@ -506,7 +506,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v24 · pantalla despejada</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v25 · sin fallos mudos</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1143,11 +1143,21 @@ document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-devolver]");
   if (!b) return;
   const marcar = b.dataset.estado !== "1";
-  const {error} = await sb.from("egr_alquiler").update({
+  // El .select() es lo que deja ver si de verdad cambió algo. Sin él,
+  // una regla de seguridad que bloquea el cambio no devuelve error:
+  // devuelve "hecho, cero filas", y el fallo pasa desapercibido.
+  const {data, error} = await sb.from("egr_alquiler").update({
     devuelto: marcar,
     devuelto_en: marcar ? new Date().toISOString() : null
-  }).eq("id", Number(b.dataset.devolver));
-  if (error) alert("No se pudo marcar: " + error.message); else refrescar();
+  }).eq("id", Number(b.dataset.devolver)).select();
+
+  if (error) { alert("No se pudo marcar: " + error.message); return; }
+  if (!data || !data.length) {
+    alert("La base no dejó marcar este gasto. No tienes permiso de edición sobre él.\n\n" +
+          "Corre el schema-v25.sql en Supabase y vuelve a intentar.");
+    return;
+  }
+  refrescar();
 });
 
 window.nuevoPagador = async () => {
@@ -2419,8 +2429,13 @@ document.addEventListener("click", async (e) => {
     ? {anulado: true,  anulado_en: new Date().toISOString(), anulado_por: sesion?.user?.id || null}
     : {anulado: false, anulado_en: null, anulado_por: null};
 
-  const {error} = await sb.from(tabla).update(fila).eq("id", Number(id));
+  const {data, error} = await sb.from(tabla).update(fila).eq("id", Number(id)).select();
   if (error) { alert("No se pudo cambiar: " + error.message); return; }
+  if (!data || !data.length) {
+    alert("La base no dejó cambiar este registro. No tienes permiso de edición sobre él.\n\n" +
+          "Corre el schema-v25.sql en Supabase y vuelve a intentar.");
+    return;
+  }
   cerrarFicha();
   (pestAlqVivo() ? refrescarAlq : refrescar)();
 });
