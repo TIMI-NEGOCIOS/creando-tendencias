@@ -15,6 +15,8 @@
     --linea:#E6DEEA; --gris:#6E6678; --gris-claro:#9B93A5;
     --verde:#3E9A78; --alerta:#C4526F;
     --medida:1120px; --curva:20px;
+    /* el hueso del esqueleto, en tres pesos según la jerarquía */
+    --hueso:#ECE3F0; --hueso-firme:#DFD1E6; --hueso-leve:#F3EDF6; --brillo:#FBF8FC;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Jost',system-ui,sans-serif;font-weight:300;background:var(--papel);color:var(--tinta);
@@ -125,6 +127,32 @@
   .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px 3px 9px;
     font-size:12px;white-space:nowrap;border:1px solid transparent}
   .chip i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;opacity:.9}
+  /* ---------- ESQUELETO DE CARGA ----------
+     Reutiliza los mismos contenedores de la página real (.cifra,
+     .pestana, .tarjeta, table) y solo cambia el contenido por
+     barras, para que al llegar los datos no se mueva nada. */
+  .hueso{display:block;border-radius:6px;background:var(--hueso);
+    background-image:linear-gradient(100deg,transparent 20%,var(--brillo) 50%,transparent 80%);
+    background-size:220% 100%;background-repeat:no-repeat;background-position:140% 0;
+    animation:barrido 1.9s cubic-bezier(.4,0,.2,1) infinite}
+  .hueso.firme{background-color:var(--hueso-firme)}
+  .hueso.leve{background-color:var(--hueso-leve)}
+  .hueso.redondo{border-radius:999px}
+  .h-titulo{height:40px;border-radius:8px}
+  .h-rotulo{height:9px}
+  .h-dato{height:25px;margin-top:9px;border-radius:7px}
+  .h-linea{height:11px}
+  .h-fina{height:9px}
+  .h-pestana{height:17px}
+  .cifras .hueso,.tabla-scroll .hueso{animation-delay:calc(var(--i,0) * .07s)}
+  @keyframes barrido{from{background-position:140% 0}to{background-position:-40% 0}}
+  @media (prefers-reduced-motion:reduce){
+    .hueso{animation:respira 2.4s ease-in-out infinite;background-image:none}
+    @keyframes respira{0%,100%{opacity:.75}50%{opacity:1}}
+  }
+  .solo-lectores{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap}
+
   .borrar{color:var(--gris-claro);font-size:13px}
   tr.anulada>td{opacity:.42;text-decoration:line-through;text-decoration-color:var(--alerta)}
   tr.anulada>td:last-child{opacity:1;text-decoration:none}
@@ -506,7 +534,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v26 · las casas cuadran</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v27 · esqueleto de carga</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -829,6 +857,74 @@ async function cargarMaestros(forzar){
   }
 }
 
+// ===============================================================
+// ESQUELETO DE CARGA
+// Se pinta antes de pedirle nada a Supabase, con los mismos
+// contenedores que va a ocupar el contenido real. Así la pantalla
+// nunca queda en blanco y nada salta cuando llegan los datos.
+// ===============================================================
+const anchos = [62,84,56,76,70,60,78,52,66,74,58,80];
+
+function huesoCifras(cuantas = 6){
+  let h = "";
+  for (let i = 0; i < cuantas; i++){
+    h += `<div class="cifra" style="--i:${i}">
+      <div class="hueso leve h-rotulo" style="width:${anchos[i % anchos.length]}%"></div>
+      <div class="hueso firme h-dato" style="width:${anchos[(i + 4) % anchos.length]}%"></div>
+    </div>`;
+  }
+  return h;
+}
+
+function huesoTabla(filas = 6, columnas = 6){
+  let cab = "", cuerpo = "";
+  for (let c = 0; c < columnas; c++)
+    cab += `<th><div class="hueso leve h-fina" style="width:${44 + (c * 7) % 28}px"></div></th>`;
+  for (let f = 0; f < filas; f++){
+    let tds = "";
+    for (let c = 0; c < columnas; c++)
+      tds += `<td><div class="hueso ${c ? "leve" : ""} h-linea"
+                 style="width:${anchos[(f * columnas + c) % anchos.length]}%"></div></td>`;
+    cuerpo += `<tr style="--i:${f}">${tds}</tr>`;
+  }
+  return `<div class="tabla-scroll"><table>
+    <thead><tr>${cab}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;
+}
+
+function huesoTarjeta(ancho = 160, filas = 6, columnas = 6){
+  return `<div class="tarjeta">
+    <div class="hueso firme" style="width:${ancho}px;height:14px;margin-bottom:14px"></div>
+    ${huesoTabla(filas, columnas)}
+  </div>`;
+}
+
+function huesoFormulario(campos = 4){
+  let h = "";
+  for (let i = 0; i < campos; i++){
+    h += `<div>
+      <div class="hueso leve h-fina" style="width:${38 + (i * 9) % 26}px;margin-bottom:7px"></div>
+      <div class="hueso" style="height:44px;border-radius:12px"></div>
+    </div>`;
+  }
+  return `<div class="tarjeta">
+    <div class="hueso firme" style="width:150px;height:14px;margin-bottom:14px"></div>
+    <div class="rejilla">${h}</div>
+  </div>`;
+}
+
+/** Pinta el esqueleto en un contenedor y lo marca como ocupado. */
+function esqueleto(id, html){
+  const caja = $(id);
+  if (!caja) return;
+  caja.setAttribute("aria-busy", "true");
+  caja.innerHTML = `<span class="solo-lectores">Cargando…</span>` + html;
+}
+
+function esqueletoListo(id){
+  const caja = $(id);
+  if (caja) caja.setAttribute("aria-busy", "false");
+}
+
 async function refrescar(){
   document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("viva", p.dataset.p === pestanaActual));
   if (!conectado) {
@@ -836,8 +932,16 @@ async function refrescar(){
     $("contenido").innerHTML = `<div class="tarjeta"><p class="vacio">Pega la anon key de Supabase para que este módulo cargue datos reales.</p></div>`;
     return;
   }
+  // El esqueleto primero, antes de pedirle nada a Supabase.
+  esqueleto("cifras", huesoCifras(6));
+  esqueleto("contenido",
+    pestanaActual === "egresos" || pestanaActual === "ingresos"
+      ? huesoFormulario(4) + huesoTarjeta(190, 6, 7)
+      : huesoTarjeta(170, 6, 6) + huesoTarjeta(150, 4, 4));
+
   await cargarMaestros();
   await pintarCifras();
+  esqueletoListo("cifras");
   await pintarBarraExpress();
   if (pestanaActual === "express") pintarExpress();
   else if (pestanaActual === "ingresos") pintarIngresos();
@@ -845,6 +949,7 @@ async function refrescar(){
   else if (pestanaActual === "egresos") pintarEgresos();
   else if (pestanaActual === "deudas") pintarDeudas();
   else pintarResumen();
+  esqueletoListo("contenido");
 }
 
 async function pintarCifras(){
@@ -1740,12 +1845,18 @@ async function refrescarAlq(){
   }
   $("flotante").classList.toggle("oculto", pestAlq !== "inquilinos");
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
+
+  esqueleto("cuerpo-alq",
+    pestAlq === "arranque" ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
+                           : huesoTarjeta(180, 7, 7));
+
   await cargarAlq();
   if (pestAlq === "inquilinos") pintarInquilinos();
   else if (pestAlq === "pagos") vistaPagos === "propiedad" ? pintarPagos() : pintarCumplimiento();
   else if (pestAlq === "propiedades") pintarPropiedades();
   else if (pestAlq === "arranque") pintarArranque();
   else pintarRecordatorios();
+  esqueletoListo("cuerpo-alq");
 }
 
 $("flotante").addEventListener("click", () => fichaInquilino(null));
