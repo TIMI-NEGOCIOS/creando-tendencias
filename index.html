@@ -506,7 +506,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v25 · sin fallos mudos</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v26 · las casas cuadran</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -2705,11 +2705,22 @@ async function pintarPorHabitacion(){
   const porCasa = {};
   (hab||[]).forEach(h => (porCasa[h.propiedad] ||= []).push(h));
 
+  // Totales de todas las casas, para la fila de cuadre del final.
+  const gran = {ing:0, gastos:0, com:0};
+
   const bloques = Object.entries(porCasa).map(([casa, filas]) => {
     const col = colorCasa(casa);
     const ing = filas.reduce((t,f) => t + Number(f.ingresos), 0);
     const gastos = (egr||[]).filter(e => e.propiedad === casa)
       .reduce((t,e) => t + Number(e.total), 0);
+    // La comisión ya viene por habitación; solo hay que sumarla.
+    // Antes no se restaba aquí, y por eso las casas no sumaban la
+    // utilidad operativa de arriba.
+    const com = filas.reduce((t,f) => t + Number(f.comision||0), 0);
+    const dif = ing - gastos - com;
+
+    gran.ing += ing; gran.gastos += gastos; gran.com += com;
+
     return `
       <div class="tarjeta" style="border-left:4px solid ${col}">
         <div class="cabecera-tarjeta">
@@ -2726,14 +2737,32 @@ async function pintarPorHabitacion(){
         <div class="pie-tarjeta">
           <span class="exp-saldo"><span>ingresos de la casa</span>${S(ing)}</span>
           <span class="exp-saldo"><span>gastos de la casa</span>${S(gastos)}</span>
-          <span class="exp-saldo"><span>diferencia</span><strong style="color:${ing-gastos>=0?"var(--verde)":"var(--alerta)"}">${S(ing - gastos)}</strong></span>
+          <span class="exp-saldo"><span>comisión</span>${S(com)}</span>
+          <span class="exp-saldo"><span>diferencia</span><strong style="color:${dif>=0?"var(--verde)":"var(--alerta)"}">${S(dif)}</strong></span>
         </div>
       </div>`;
   }).join("");
 
+  // Fila de cuadre: la suma de las casas tiene que dar la utilidad
+  // operativa del cuadro de arriba, al céntimo.
+  const cuadre = bloques ? `
+    <div class="tarjeta">
+      <h4>Las tres casas juntas</h4>
+      <div class="tabla-scroll">${tabla(
+        ["", "Ingresos", "Gastos", "Comisión", "Diferencia"],
+        [["Suma de las casas", S(gran.ing), S(gran.gastos), S(gran.com),
+          `<strong style="color:${gran.ing-gran.gastos-gran.com>=0?"var(--verde)":"var(--alerta)"}">${
+            S(gran.ing - gran.gastos - gran.com)}</strong>`]],
+        [1,2,3,4])}</div>
+      <p class="vacio" style="text-align:left;padding:12px 0 0">
+        Esta diferencia es la misma utilidad operativa del cuadro de arriba. Si no coinciden,
+        hay un movimiento sin casa asignada.</p>
+    </div>` : "";
+
   $("contenido").innerHTML =
     calendarioIngresos(pagos||[], props||[]) +
     (bloques || `<div class="tarjeta"><p class="vacio">No hay ingresos registrados en este mes.</p></div>`) +
+    cuadre +
     `<div class="tarjeta">
       <h4>Gastos por casa y categoría</h4>
       <div class="tabla-scroll">${tabla(["Casa","Categoría","Total","Movimientos"],
