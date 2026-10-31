@@ -263,6 +263,10 @@
   td.audit.deuda{background:#F7D3E0;color:#7A2544}
   td.audit.deuda::after{content:" deuda";color:#B4479B;font-size:11px}
   td.audit:hover{outline:2px solid var(--lila);outline-offset:-2px}
+  /* Sin comisión que marcar: ni se puede clicar ni invita a hacerlo */
+  td.sin-comision{cursor:default;color:var(--gris-claro);font-size:12px;
+    letter-spacing:.04em;font-variant-numeric:normal}
+  td.sin-comision:hover{background:none;outline:none}
   th.plegable-socios{cursor:pointer;user-select:none}
   th.plegable-socios:hover{color:var(--morado-hondo)}
 
@@ -534,7 +538,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v27 · esqueleto de carga</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v28 · comisión en un clic</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1104,10 +1108,13 @@ async function pintarIngresos(){
         filas.map(r => ({clase: r.anulado ? "anulada" : "", celdas: [
           r.fecha, `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
           esc(r.inquilino), chipConcepto(r.concepto||"alquiler", "ingreso"), S(r.monto||r.renta),
-          celdaEstado(r.id, "comision_estado", r.comision_estado, r.comision),
+          celdaEstado(r.id, "comision_estado", r.comision_estado, r.comision,
+                      generaComision(r.concepto)),
           ...(verSocios ? [
-            celdaEstado(r.id, "magalli_estado", r.magalli_estado, r.pago_magalli ?? r.comision/2),
-            celdaEstado(r.id, "matias_estado",  r.matias_estado,  r.pago_matias  ?? r.comision/2)
+            celdaEstado(r.id, "magalli_estado", r.magalli_estado,
+                        r.pago_magalli ?? r.comision/2, generaComision(r.concepto)),
+            celdaEstado(r.id, "matias_estado",  r.matias_estado,
+                        r.pago_matias  ?? r.comision/2, generaComision(r.concepto))
           ] : []),
           esc(r.metodo_pago||"—"), esc(r.nota||"") + selloAnulado(r),
           `<span class="acc"><button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
@@ -1528,12 +1535,26 @@ function tabla(cabeceras, filas, numericas = []){
   return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
 }
 
-function celdaEstado(id, campo, estado, monto){
+// La comisión solo existe cuando el ingreso es un alquiler. En
+// cualquier otro concepto —garantía, cochera, varios— no hay nada
+// que repartir, así que la celda deja de ser clicable y lo dice.
+const generaComision = (concepto) =>
+  String(concepto || "").trim().toLowerCase() === "alquiler";
+
+function celdaEstado(id, campo, estado, monto, aplica = true){
+  if (!aplica) return {
+    html: "no aplica",
+    clase: "audit sin-comision",
+    datos: "",
+    titulo: "Solo los alquileres generan comisión"
+  };
   return {
     html: S(monto),
     clase: "audit" + (estado ? " " + estado : ""),
     datos: `data-fila="${id}" data-campo="${campo}" data-estado="${estado || ""}"`,
-    titulo: "Un clic: pagado · dos: deuda · tres: sin marcar"
+    titulo: campo === "comision_estado"
+      ? "Un clic marca la comisión y a los dos socios · dos: deuda · tres: sin marcar"
+      : "Un clic: pagado · dos: deuda · tres: sin marcar"
   };
 }
 
@@ -1546,10 +1567,26 @@ document.addEventListener("click", async (e) => {
   if (!celda) return;
 
   const siguiente = {"": "pagado", "pagado": "deuda", "deuda": ""}[celda.dataset.estado || ""];
-  const {error} = await sb.from("ing_alquiler")
-    .update({[celda.dataset.campo]: siguiente || null})
-    .eq("id", Number(celda.dataset.fila));
-  if (error) alert("No se pudo marcar: " + error.message); else refrescar();
+
+  // Marcar la comisión arrastra a los dos socios: si la comisión se
+  // pagó, se pagó la parte de cada uno. Eran tres clics, ahora es uno.
+  const cambio = celda.dataset.campo === "comision_estado"
+    ? {comision_estado: siguiente || null,
+       magalli_estado:  siguiente || null,
+       matias_estado:   siguiente || null}
+    : {[celda.dataset.campo]: siguiente || null};
+
+  const {data, error} = await sb.from("ing_alquiler")
+    .update(cambio)
+    .eq("id", Number(celda.dataset.fila))
+    .select();
+
+  if (error) { alert("No se pudo marcar: " + error.message); return; }
+  if (!data || !data.length) {
+    alert("La base no dejó marcar este pago. No tienes permiso de edición sobre él.");
+    return;
+  }
+  refrescar();
 });
 
 window.cicloComision = async (id, auditado, pagada) => {
