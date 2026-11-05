@@ -22,7 +22,7 @@
   body{font-family:'Jost',system-ui,sans-serif;font-weight:300;background:var(--papel);color:var(--tinta);
        min-height:100vh;display:flex;flex-direction:column;line-height:1.55}
   button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
-  .marco{width:100%;max-width:var(--medida);margin:0 auto;padding:0 28px;flex:1;display:flex;flex-direction:column}
+  .marco{width:100%;max-width:var(--medida);min-width:0;margin:0 auto;padding:0 28px;flex:1;display:flex;flex-direction:column}
 
   header{padding:34px 0 0;display:flex;align-items:center;gap:14px}
   .isotipo{width:34px;height:34px;flex:none}
@@ -111,6 +111,42 @@
   .pestana{border:1px solid var(--linea);border-radius:999px;padding:8px 22px;font-size:14px;color:var(--gris);transition:.25s}
   .pestana:hover{border-color:var(--lila);color:var(--morado-hondo)}
   .pestana.viva{background:var(--morado-hondo);border-color:var(--morado-hondo);color:#fff}
+
+  /* ---------- GRAFICO DE SERVICIOS ---------- */
+  .srv-barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-width:0}
+  .srv-grupo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0}
+  .srv-sep{width:1px;height:22px;background:var(--linea);margin:0 3px}
+  .pastilla{border:1px solid var(--linea);border-radius:999px;padding:6px 15px;font-size:13px;
+    color:var(--gris);background:#fff;transition:.2s;display:inline-flex;align-items:center;gap:7px}
+  .pastilla:hover{border-color:var(--lila);color:var(--morado-hondo)}
+  .pastilla.viva{background:var(--lila-velo);border-color:var(--lila);color:var(--morado-hondo)}
+  .pastilla i{width:9px;height:9px;border-radius:3px;flex:none}
+  .pastilla.apagada{opacity:.5;text-decoration:line-through;text-decoration-color:var(--gris-claro)}
+  .pastilla.apagada i{background:var(--gris-claro)!important}
+  /* el boton de ayuda: sin sombra, sin relleno, sin llamar la atencion */
+  .llano{border:1px solid var(--linea);border-radius:10px;padding:6px 13px;font-size:12.5px;
+    color:var(--gris);background:transparent;transition:.2s}
+  .llano:hover{color:var(--morado-hondo);border-color:var(--lila)}
+  .srv-nota{border:1px solid var(--linea);border-radius:14px;padding:16px 19px;margin:16px 0 2px;
+    font-size:13.5px;line-height:1.8;color:var(--gris)}
+  .srv-nota b{color:var(--tinta);font-weight:500}
+  .srv-nota ul{margin:10px 0 0;padding-left:18px}
+  .srv-nota li{margin-bottom:5px}
+  .srv-lienzo{position:relative;margin:18px -6px 0;overflow-x:auto}
+  .srv-lienzo svg{width:100%;min-width:720px;height:auto;display:block}
+  .srv-trampa{cursor:crosshair}
+  .srv-tip{position:absolute;left:0;top:0;pointer-events:none;opacity:0;
+    transform:translate(-50%,-100%);background:var(--tinta);color:#fff;border-radius:11px;
+    padding:8px 13px;font-size:12.5px;line-height:1.6;white-space:nowrap;
+    transition:opacity .12s;z-index:5;box-shadow:0 6px 20px rgba(43,36,48,.22)}
+  .srv-tip b{font-weight:500}
+  .srv-tip small{opacity:.72;display:block;font-size:11.5px;margin-top:2px}
+  .srv-leyenda{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12.5px;color:var(--gris)}
+  .srv-leyenda span{display:inline-flex;align-items:center;gap:7px}
+  .srv-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
+  .srv-riel{display:block;width:100%;min-width:64px;height:7px;border-radius:999px;
+    background:var(--hueso-leve);overflow:hidden}
+  .srv-riel span{display:block;height:100%;border-radius:999px}
 
   .tarjeta{margin-top:20px;border:1px solid var(--linea);border-radius:var(--curva);background:#fff;padding:24px;overflow:hidden}
   .tarjeta h4{font-size:16px;font-weight:400;color:var(--morado-hondo);margin-bottom:14px}
@@ -538,7 +574,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v28 · comisión en un clic</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v29 · luz, gas y mantenimiento</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1850,6 +1886,7 @@ async function modAlquileres(){
       <button class="pestana" data-pa="inquilinos">Inquilinos</button>
       <button class="pestana" data-pa="pagos">Pagos</button>
       <button class="pestana" data-pa="propiedades">Propiedades</button>
+      <button class="pestana" data-pa="servicios">Luz, gas y mantenimiento</button>
       <button class="pestana" data-pa="recordatorios">Recordatorios</button>
       <button class="pestana oculta-pestana oculto" data-pa="arranque" id="pest-arranque">Deuda de arranque</button>
     </div>
@@ -1884,8 +1921,16 @@ async function refrescarAlq(){
   if (!conectado) { $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">Sin conexión a Supabase.</p></div>`; return; }
 
   esqueleto("cuerpo-alq",
-    pestAlq === "arranque" ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
+    pestAlq === "arranque"  ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
+    : pestAlq === "servicios" ? huesoTarjeta(300, 1, 1) + huesoTarjeta(150, 4, 7)
                            : huesoTarjeta(180, 7, 7));
+
+  if (pestAlq === "servicios") {
+    await cargarServicios();
+    pintarServicios();
+    esqueletoListo("cuerpo-alq");
+    return;
+  }
 
   await cargarAlq();
   if (pestAlq === "inquilinos") pintarInquilinos();
@@ -1897,6 +1942,443 @@ async function refrescarAlq(){
 }
 
 $("flotante").addEventListener("click", () => fichaInquilino(null));
+
+// ---------- pestaña servicios · luz, gas y mantenimiento ----------
+// La paleta pasó el validador de daltonismo en las cuatro ranuras
+// (deutan ΔE 10.0, tritan 20.7, visión normal 18.3, contraste 3:1).
+// El color sigue a la CASA, no a su posición: si filtras una casa,
+// las que quedan NO cambian de color.
+const SRV_COLOR = ["#6B4E9B", "#C4526F", "#0E8FA8", "#B07D2A"];
+const SRV = {
+  luz:           {rotulo:"Luz",           art:"la luz",           prueba:/luz|electric/i, respaldo:"Luz"},
+  gas:           {rotulo:"Gas",           art:"el gas",           prueba:/\bgas\b/i,      respaldo:"Gas"},
+  mantenimiento: {rotulo:"Mantenimiento", art:"el mantenimiento", prueba:/manteni/i,      respaldo:"Mantenimiento"}
+};
+const SRV_MES3 = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+const srvRotMes = m => SRV_MES3[Number(String(m).slice(5,7)) - 1] + " " + String(m).slice(2,4);
+
+let srvServicio = "luz";
+let srvCasas    = null;      // null = todas las casas
+let srvModo     = "soles";   // soles | variacion
+let srvVentana  = 12;        // cuántos meses se grafican
+let srvAyuda    = false;
+let srvGastos   = [];
+
+function srvColor(casa){
+  const orden = PROPIEDADES.slice().sort();
+  let i = orden.indexOf(casa);
+  if (i < 0) i = orden.length;
+  return SRV_COLOR[i % SRV_COLOR.length];
+}
+
+// El nombre exacto de la categoría tal como está en conceptos, para
+// que lo que se guarde aquí caiga en el mismo sitio que la pestaña
+// de Egresos y no nazca una categoría gemela.
+function srvConcepto(){
+  const def = SRV[srvServicio];
+  const hit = (maestros.conceptos || [])
+    .filter(c => c.ambito === "servicio")
+    .find(c => def.prueba.test(String(c.nombre)));
+  return hit ? hit.nombre : def.respaldo;
+}
+
+async function cargarServicios(){
+  const {data} = await sb.from("egr_alquiler")
+    .select("id, fecha, propiedad, monto, categoria, categoria_texto, descripcion, responsable, anulado, anulado_en")
+    .order("fecha");
+  srvGastos = data || [];
+}
+
+// Agrupa los egresos reales en mes × casa. Varios pagos del mismo mes
+// se SUMAN y se cuenta cuántos fueron.
+function srvMatriz(){
+  const def = SRV[srvServicio];
+  const movs = vivos(srvGastos).filter(r =>
+    r.propiedad && def.prueba.test(String(r.categoria_texto || r.categoria || "")));
+
+  const mapa = {};
+  movs.forEach(r => {
+    const m = String(r.fecha).slice(0, 7);
+    if (!mapa[m]) mapa[m] = {};
+    if (!mapa[m][r.propiedad]) mapa[m][r.propiedad] = {total:0, pagos:0};
+    mapa[m][r.propiedad].total += Number(r.monto) || 0;
+    mapa[m][r.propiedad].pagos++;
+  });
+
+  const todos = Object.keys(mapa).sort();
+  const meses = srvVentana ? todos.slice(-srvVentana) : todos;
+  const conDatos = PROPIEDADES.filter(p => meses.some(m => mapa[m] && mapa[m][p]));
+  const casas = srvCasas ? conDatos.filter(p => srvCasas.has(p)) : conDatos;
+  return {meses, mapa, movs, casas, conDatos, todos};
+}
+
+function srvEscala(max){
+  if (!(max > 0)) return 10;
+  const paso = Math.pow(10, Math.floor(Math.log10(max))) / 4;
+  return Math.ceil(max / paso) * paso;
+}
+
+// Barra con la punta redondeada de 4px y la base pegada al cero.
+function srvBarra(x, w, yv, y0){
+  const alto = Math.abs(y0 - yv);
+  if (alto < 0.6)
+    return `<rect x="${x.toFixed(1)}" y="${(y0 - 1).toFixed(1)}" width="${w.toFixed(1)}" height="2" rx="1"/>`;
+  const r = Math.min(4, w / 2, alto);
+  const f = n => n.toFixed(1);
+  if (yv <= y0)   // hacia arriba
+    return `<path d="M${f(x)} ${f(y0)} L${f(x)} ${f(yv + r)} Q${f(x)} ${f(yv)} ${f(x + r)} ${f(yv)}`
+         + ` L${f(x + w - r)} ${f(yv)} Q${f(x + w)} ${f(yv)} ${f(x + w)} ${f(yv + r)} L${f(x + w)} ${f(y0)} Z"/>`;
+  return `<path d="M${f(x)} ${f(y0)} L${f(x)} ${f(yv - r)} Q${f(x)} ${f(yv)} ${f(x + r)} ${f(yv)}`
+       + ` L${f(x + w - r)} ${f(yv)} Q${f(x + w)} ${f(yv)} ${f(x + w)} ${f(yv - r)} L${f(x + w)} ${f(y0)} Z"/>`;
+}
+
+function srvGrafico(meses, mapa, casas){
+  const pct = srvModo === "variacion";
+  const def = SRV[srvServicio];
+
+  const valor = (m, c) => {
+    const celda = mapa[m] && mapa[m][c];
+    const hoy = celda ? celda.total : null;
+    if (!pct) return hoy;
+    const i = meses.indexOf(m);
+    if (i <= 0 || hoy == null) return null;
+    const previo = mapa[meses[i - 1]] && mapa[meses[i - 1]][c];
+    if (!previo || !previo.total) return null;
+    return (hoy - previo.total) / previo.total * 100;
+  };
+
+  const puntos = [];
+  meses.forEach(m => casas.forEach(c => {
+    const v = valor(m, c);
+    if (v != null) puntos.push(v);
+  }));
+  if (!puntos.length)
+    return `<p class="vacio">${pct
+      ? "Para ver la variación hace falta el mes anterior. Con un solo mes registrado todavía no hay con qué comparar."
+      : "No hay pagos de " + def.rotulo.toLowerCase() + " registrados para estas casas."}</p>`;
+
+  const W = 960, H = 360, mi = 64, md = 18, ar = 26, ab = 56;
+  const pw = W - mi - md, ph = H - ar - ab;
+  const tope = pct ? srvEscala(Math.max(...puntos.map(Math.abs))) : srvEscala(Math.max(...puntos));
+  const piso = pct ? -tope : 0;
+  const y  = v => ar + ph - (v - piso) / (tope - piso) * ph;
+  const y0 = y(0);
+
+  const banda = pw / meses.length;
+  const util  = banda - Math.min(banda * 0.26, 28);
+  const ancho = Math.max(5, (util - 2 * (casas.length - 1)) / casas.length);
+
+  let reja = "";
+  for (let k = 0; k <= 4; k++){
+    const v = piso + (tope - piso) * k / 4;
+    const yy = y(v);
+    const cero = Math.abs(v) < 0.0001;
+    reja += `<line x1="${mi}" x2="${W - md}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"
+      stroke="${cero ? "#D3C8D9" : "#F2ECF4"}" stroke-width="1"/>`
+      + `<text x="${mi - 11}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="12.5" fill="#9B93A5">${
+          pct ? (v > 0 ? "+" : "") + Math.round(v) + "%" : Math.round(v).toLocaleString("es-PE")}</text>`;
+  }
+
+  let barras = "", trampas = "", rotulos = "", ejeX = "";
+  meses.forEach((m, im) => {
+    const x0 = mi + banda * im + (banda - util) / 2;
+    ejeX += `<text x="${(mi + banda * im + banda / 2).toFixed(1)}" y="${(ar + ph + 22).toFixed(1)}"
+      text-anchor="middle" font-size="13" fill="#6E6678">${srvRotMes(m)}</text>`;
+
+    casas.forEach((c, ic) => {
+      const v = valor(m, c);
+      if (v == null) return;
+      const x  = x0 + ic * (ancho + 2);
+      const yv = y(v);
+      const celda = mapa[m] && mapa[m][c];
+      barras += `<g fill="${srvColor(c)}">${srvBarra(x, ancho, yv, y0)}</g>`;
+
+      // la zona sensible es más grande que la barra
+      trampas += `<rect x="${(x - 3).toFixed(1)}" y="${ar}" width="${(ancho + 6).toFixed(1)}" height="${ph}"
+        fill="transparent" class="srv-trampa"
+        data-casa="${esc(c)}" data-mes="${m}"
+        data-total="${celda ? celda.total : 0}" data-pagos="${celda ? celda.pagos : 0}"
+        data-valor="${v.toFixed(1)}" data-x="${(x + ancho / 2).toFixed(1)}" data-y="${Math.min(yv, y0).toFixed(1)}"/>`;
+
+      // rótulo directo solo en el último mes: un número en cada barra
+      // sería ruido, no información
+      if (im === meses.length - 1)
+        rotulos += `<text x="${(x + ancho / 2).toFixed(1)}" y="${(v >= 0 ? yv - 9 : yv + 18).toFixed(1)}"
+          text-anchor="middle" font-size="13" font-weight="500" fill="#2B2430">${
+            pct ? (v > 0 ? "+" : "") + Math.round(v) + "%" : Math.round(v).toLocaleString("es-PE")}</text>`;
+    });
+  });
+
+  return `<div class="srv-lienzo">
+    <svg viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="${def.rotulo} por mes y por casa, ${pct ? "en variación porcentual" : "en soles"}">
+      ${reja}${barras}${rotulos}${ejeX}
+      <line x1="${mi}" x2="${W - md}" y1="${(ar + ph).toFixed(1)}" y2="${(ar + ph).toFixed(1)}"
+        stroke="#E6DEEA" stroke-width="1"/>
+      ${trampas}
+    </svg>
+    <div class="srv-tip" id="srv-tip"></div>
+  </div>
+  <div class="srv-leyenda">${casas.map(c =>
+    `<span><i style="background:${srvColor(c)}"></i>${esc(c)}</span>`).join("")}</div>`;
+}
+
+// La tabla de la misma verdad que el gráfico, para quien prefiera leerla.
+function srvTabla(meses, mapa, casas){
+  const pct = srvModo === "variacion";
+  const cuerpo = casas.map(c => {
+    const serie = meses.map(m => (mapa[m] && mapa[m][c]) ? mapa[m][c].total : null);
+    const celdas = meses.map((m, i) => {
+      const hoy = serie[i];
+      if (hoy == null) return `<span style="color:var(--gris-claro)">—</span>`;
+      if (!pct) {
+        const n = mapa[m][c].pagos;
+        return S(hoy) + (n > 1 ? `<small style="color:var(--gris-claro)"> · ${n} pagos</small>` : "");
+      }
+      const antes = serie[i - 1];
+      if (i === 0 || !antes) return `<span style="color:var(--gris-claro)">—</span>`;
+      const d = (hoy - antes) / antes * 100;
+      return `<span style="color:${d > 0 ? "var(--alerta)" : "var(--verde)"}">${
+        (d > 0 ? "+" : "") + d.toFixed(1)}%</span>`;
+    });
+    const reales = serie.filter(v => v != null);
+    const prom = reales.length ? reales.reduce((a, b) => a + b, 0) / reales.length : 0;
+    return [`<span class="chip" style="background:${srvColor(c)}1A;color:${srvColor(c)};border-color:${srvColor(c)}55">
+      <i></i>${esc(c)}</span>`, ...celdas, `<strong>${S(prom)}</strong>`];
+  });
+  return tabla(["Casa", ...meses.map(srvRotMes), "Promedio"], cuerpo,
+    meses.map((_, i) => i + 1).concat([meses.length + 1]));
+}
+
+// La comparación entre casas: lo que cada una paga por este servicio.
+function srvComparativa(meses, mapa, casas){
+  const ultimo = meses[meses.length - 1], penultimo = meses[meses.length - 2];
+  const filas = casas.map(c => {
+    const serie = meses.map(m => (mapa[m] && mapa[m][c]) ? mapa[m][c].total : null).filter(v => v != null);
+    const prom = serie.length ? serie.reduce((a, b) => a + b, 0) / serie.length : 0;
+    const hoy = (mapa[ultimo] && mapa[ultimo][c]) ? mapa[ultimo][c].total : null;
+    const ayer = (penultimo && mapa[penultimo] && mapa[penultimo][c]) ? mapa[penultimo][c].total : null;
+    const d = (hoy != null && ayer) ? (hoy - ayer) / ayer * 100 : null;
+    const pagos = meses.reduce((t, m) => t + ((mapa[m] && mapa[m][c]) ? mapa[m][c].pagos : 0), 0);
+    return {c, prom, hoy, d, pagos,
+            min: serie.length ? Math.min(...serie) : null,
+            max: serie.length ? Math.max(...serie) : null};
+  }).sort((a, b) => b.prom - a.prom);
+
+  const techo = Math.max(...filas.map(f => f.prom), 1);
+  return tabla(["Casa", "Promedio del mes", "", "Más barato", "Más caro", `${srvRotMes(ultimo)}`, "vs. mes anterior", "Pagos"],
+    filas.map(f => [
+      `<span class="chip" style="background:${srvColor(f.c)}1A;color:${srvColor(f.c)};border-color:${srvColor(f.c)}55">
+         <i></i>${esc(f.c)}</span>`,
+      `<strong>${S(f.prom)}</strong>`,
+      `<span class="srv-riel"><span style="width:${(f.prom / techo * 100).toFixed(1)}%;background:${srvColor(f.c)}"></span></span>`,
+      f.min == null ? "—" : S(f.min),
+      f.max == null ? "—" : S(f.max),
+      f.hoy == null ? `<span style="color:var(--gris-claro)">sin registrar</span>` : S(f.hoy),
+      f.d == null ? `<span style="color:var(--gris-claro)">—</span>`
+        : `<span style="color:${f.d > 0 ? "var(--alerta)" : "var(--verde)"}">${
+            (f.d > 0 ? "+" : "") + f.d.toFixed(1)}%</span>`,
+      f.pagos
+    ]), [1, 3, 4, 5, 6, 7]);
+}
+
+function pintarServicios(){
+  const def = SRV[srvServicio];
+  const {meses, mapa, movs, casas, conDatos} = srvMatriz();
+  const anulados = srvGastos.filter(r => r.anulado
+    && def.prueba.test(String(r.categoria_texto || r.categoria || ""))).length;
+  const mesHoy = new Date().toISOString().slice(0, 7);
+  const yaEsteMes = conDatos.filter(p => mapa[mesHoy] && mapa[mesHoy][p]);
+  const faltanEsteMes = PROPIEDADES.filter(p => !(mapa[mesHoy] && mapa[mesHoy][p]));
+
+  $("cuerpo-alq").innerHTML = `
+    <div class="tarjeta">
+      <div class="srv-barra">
+        <div class="srv-grupo">${Object.keys(SRV).map(k =>
+          `<button class="pastilla ${k === srvServicio ? "viva" : ""}" data-srv="${k}">${SRV[k].rotulo}</button>`).join("")}</div>
+        <div class="srv-sep"></div>
+        <div class="srv-grupo">${PROPIEDADES.map(p => {
+          const viva = !srvCasas || srvCasas.has(p);
+          return `<button class="pastilla ${viva ? "viva" : "apagada"}" data-srv-casa="${esc(p)}"
+            title="${viva ? "Quitar " + esc(p) + " del gráfico" : "Volver a comparar " + esc(p)}">
+            <i style="background:${srvColor(p)}"></i>${esc(p)}</button>`;
+        }).join("")}
+        ${srvCasas ? `<button class="llano" data-srv-casa="*">Ver las cuatro</button>` : ""}</div>
+        <div class="srv-sep"></div>
+        <div class="srv-grupo">
+          <button class="pastilla ${srvModo === "soles" ? "viva" : ""}" data-srv-modo="soles">Soles</button>
+          <button class="pastilla ${srvModo === "variacion" ? "viva" : ""}" data-srv-modo="variacion">Variación %</button>
+        </div>
+        <div class="srv-sep"></div>
+        <button class="llano" data-srv-ayuda="1">${srvAyuda ? "Ocultar la explicación" : "¿Cómo se lee este gráfico?"}</button>
+      </div>
+
+      ${srvAyuda ? `<div class="srv-nota">
+        <b>Qué estás viendo.</b> Cada grupo de barras es un mes. Dentro del grupo hay una barra
+        por casa, siempre del mismo color: ${PROPIEDADES.map(p =>
+          `<span style="color:${srvColor(p)}">${esc(p)}</span>`).join(", ")}. El color no cambia nunca,
+        aunque quites casas del gráfico.
+        <ul>
+          <li><b>Soles</b> muestra lo que se pagó de ${def.rotulo.toLowerCase()} ese mes. Si hubo
+              dos o tres pagos en el mismo mes, la barra los suma y la tabla de abajo te dice
+              cuántos fueron.</li>
+          <li><b>Variación %</b> compara cada mes con el mes anterior <i>de la misma casa</i>.
+              Arriba del cero subió, abajo del cero bajó. El primer mes no tiene barra porque
+              no hay con qué compararlo.</li>
+          <li>El número encima de la barra aparece solo en el último mes, para que el gráfico
+              no se llene de cifras.</li>
+          <li>Pasa el dedo o el mouse por una barra y te dice el monto, la casa y cuántos
+              pagos lo componen.</li>
+          <li>Las barras salen de los <b>egresos</b>. Lo que registres aquí aparece en la
+              pestaña Egresos, y lo que registres allá aparece aquí. Es la misma plata.</li>
+        </ul>
+      </div>` : ""}
+
+      ${srvGrafico(meses, mapa, casas)}
+    </div>
+
+    ${meses.length ? `<div class="tarjeta">
+      <h4>Comparar las casas · ${def.rotulo.toLowerCase()}, ${meses.length} ${meses.length === 1 ? "mes" : "meses"}</h4>
+      <div class="tabla-scroll">${srvComparativa(meses, mapa, conDatos)}</div>
+    </div>
+
+    <div class="tarjeta">
+      <h4>Mes por mes${srvModo === "variacion" ? " · variación" : ""}</h4>
+      <div class="tabla-scroll">${srvTabla(meses, mapa, conDatos)}</div>
+    </div>` : ""}
+
+    <div class="tarjeta">
+      <h4>Registrar ${def.art} del mes</h4>
+      <p class="vacio" style="text-align:left;padding:0 0 14px">
+        ${faltanEsteMes.length
+          ? `De ${srvRotMes(mesHoy + "-01")} todavía falta: <strong>${faltanEsteMes.map(esc).join(", ")}</strong>.`
+          : `De ${srvRotMes(mesHoy + "-01")} ya están las cuatro casas.`}
+        ${yaEsteMes.length ? ` Ya registradas: ${yaEsteMes.map(esc).join(", ")}.` : ""}
+        Si una casa paga dos veces el mismo mes, registra los dos: se suman.
+      </p>
+      <div class="rejilla">
+        <div><label>Mes</label><input id="s-mes" type="month" value="${mesHoy}"></div>
+        <div><label>Casa</label><select id="s-prop">${PROPIEDADES.map(p =>
+          `<option>${esc(p)}</option>`).join("")}</select></div>
+        <div><label>Monto</label><input id="s-monto" type="number" step="0.01" placeholder="150"></div>
+        <div><label>Quién pagó</label><select id="s-resp">${(maestros.pagadores || []).map(p =>
+          `<option>${esc(p.nombre)}</option>`).join("")}</select></div>
+        <div><label>Nota</label><input id="s-desc" placeholder="Recibo de ${def.rotulo.toLowerCase()}"></div>
+        <button class="primario" data-srv-guardar="1">Guardar</button>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h4>Lo registrado de ${def.rotulo.toLowerCase()} · ${movs.length}</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Mes", "Fecha", "Casa", "Monto", "Quién pagó", "Nota", ""],
+        srvOrdenados().map(r => ({clase: r.anulado ? "anulada" : "", celdas: [
+          srvRotMes(String(r.fecha).slice(0, 7)),
+          String(r.fecha).slice(0, 10),
+          esc(r.propiedad || "—"),
+          S(r.monto),
+          esc(r.responsable || ""),
+          esc(r.descripcion || "") + selloAnulado(r),
+          `<span class="acc"><button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
+           ${botonAnular("egr_alquiler", r, "pago de " + def.rotulo.toLowerCase())}</span>`
+        ]})), [3])}</div>
+      <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
+    </div>`;
+
+  srvEngancharTip();
+}
+
+// Los movimientos de este servicio, respetando el interruptor de anulados.
+function srvOrdenados(){
+  const def = SRV[srvServicio];
+  return srvGastos
+    .filter(r => def.prueba.test(String(r.categoria_texto || r.categoria || "")))
+    .filter(r => verAnulados ? true : !r.anulado)
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+}
+
+// El tooltip: una sola escucha sobre el lienzo, por fluidez.
+function srvEngancharTip(){
+  const lienzo = document.querySelector(".srv-lienzo");
+  const tip = $("srv-tip");
+  if (!lienzo || !tip) return;
+  const svg = lienzo.querySelector("svg");
+
+  const mostrar = (t) => {
+    const caja = svg.getBoundingClientRect();
+    const k = caja.width / 960;
+    const pct = srvModo === "variacion";
+    const v = Number(t.dataset.valor);
+    tip.innerHTML = `<b>${esc(t.dataset.casa)}</b> · ${srvRotMes(t.dataset.mes)}<br>`
+      + (pct ? `${v > 0 ? "+" : ""}${v.toFixed(1)}% vs. el mes anterior<br><small>${S(t.dataset.total)} este mes</small>`
+             : `${S(t.dataset.total)}<small>${Number(t.dataset.pagos) > 1
+                  ? Number(t.dataset.pagos) + " pagos sumados" : "un solo pago"}</small>`);
+    tip.style.opacity = 1;
+    const ancho = tip.offsetWidth, alto = tip.offsetHeight;
+    const x = Math.min(Math.max(Number(t.dataset.x) * k, ancho / 2), caja.width - ancho / 2);
+    tip.style.left = x + "px";
+    tip.style.top  = Math.max(Number(t.dataset.y) * k - 10, alto + 2) + "px";
+  };
+
+  lienzo.addEventListener("pointermove", (e) => {
+    const t = e.target.closest(".srv-trampa");
+    if (t) mostrar(t); else tip.style.opacity = 0;
+  });
+  lienzo.addEventListener("pointerleave", () => { tip.style.opacity = 0; });
+}
+
+document.addEventListener("click", async (e) => {
+  const s = e.target.closest("[data-srv]");
+  if (s) { srvServicio = s.dataset.srv; return pintarServicios(); }
+
+  const c = e.target.closest("[data-srv-casa]");
+  if (c) {
+    const casa = c.dataset.srvCasa;
+    if (casa === "*") srvCasas = null;
+    else {
+      if (!srvCasas) srvCasas = new Set(PROPIEDADES);
+      srvCasas.has(casa) ? srvCasas.delete(casa) : srvCasas.add(casa);
+      if (!srvCasas.size || srvCasas.size === PROPIEDADES.length) srvCasas = null;
+    }
+    return pintarServicios();
+  }
+
+  const m = e.target.closest("[data-srv-modo]");
+  if (m) { srvModo = m.dataset.srvModo; return pintarServicios(); }
+
+  const a = e.target.closest("[data-srv-ayuda]");
+  if (a) { srvAyuda = !srvAyuda; return pintarServicios(); }
+
+  const g = e.target.closest("[data-srv-guardar]");
+  if (!g) return;
+
+  const mes = $("s-mes").value;
+  const monto = +$("s-monto").value || 0;
+  if (!mes)   { alert("Falta el mes."); return; }
+  if (!monto) { alert("Falta el monto."); return; }
+
+  // La fecha queda dentro del mes elegido: hoy si es el mes corriente,
+  // el último día si es un mes pasado. Así ningún corte mensual la
+  // deja fuera.
+  const hoy = new Date().toISOString().slice(0, 10);
+  const fecha = hoy.slice(0, 7) === mes
+    ? hoy
+    : new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)).toISOString().slice(0, 10);
+
+  const {error} = await sb.from("egr_alquiler").insert({
+    fecha,
+    propiedad: $("s-prop").value || null,
+    categoria_texto: srvConcepto(),
+    categoria: "varios",
+    monto,
+    responsable: $("s-resp").value || null,
+    descripcion: $("s-desc").value.trim() || null
+  });
+  if (error) { alert("No se guardó: " + error.message); return; }
+  $("s-monto").value = ""; $("s-desc").value = "";
+  await cargarServicios();
+  pintarServicios();
+});
 
 // ---------- pestaña inquilinos ----------
 function pintarInquilinos(){
