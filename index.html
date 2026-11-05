@@ -574,7 +574,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v29 · luz, gas y mantenimiento</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v30 · quién pagó</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1021,6 +1021,16 @@ function colorConcepto(nombre, ambito){
   const c = maestros.conceptos.find(x => x.nombre === nombre && x.ambito === ambito);
   return c?.color || "#8C84A0";
 }
+// Una caja no es una persona: la plata sale de ahí, no se le
+// debe a nadie. Solo los socios llevan botón de Devuelto.
+function esSocio(nombre){
+  const n = String(nombre || "").trim().toLowerCase();
+  if (!n) return false;
+  const p = (maestros.pagadores || []).find(x =>
+    String(x.nombre || "").trim().toLowerCase() === n);
+  return p ? !!p.socio : true;   // si no está en la lista, se asume persona
+}
+
 function chipConcepto(nombre, ambito){
   if (!nombre) return "—";
   const col = colorConcepto(nombre, ambito);
@@ -1270,7 +1280,7 @@ async function pintarEgresos(){
           r.fecha, esc(r.propiedad||"—"),
           chipConcepto(r.categoria_texto||r.categoria, "servicio"),
           `<span class="celda-monto">
-             ${r.responsable
+             ${r.responsable && esSocio(r.responsable)
                ? `<button class="devol ${r.devuelto ? "si" : ""}" data-devolver="${r.id}" data-estado="${r.devuelto ? 1 : 0}"
                     title="${r.devuelto
                       ? `Ya se le devolvió a ${esc(r.responsable)}` + (r.devuelto_en ? ` el ${r.devuelto_en.slice(0,10)}` : "")
