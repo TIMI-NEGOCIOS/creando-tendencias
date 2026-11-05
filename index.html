@@ -574,7 +574,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v30 · quién pagó</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v32 · garantías como activo</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1897,6 +1897,7 @@ async function modAlquileres(){
       <button class="pestana" data-pa="pagos">Pagos</button>
       <button class="pestana" data-pa="propiedades">Propiedades</button>
       <button class="pestana" data-pa="servicios">Luz, gas y mantenimiento</button>
+      <button class="pestana" data-pa="garantias">Depósitos de garantía</button>
       <button class="pestana" data-pa="recordatorios">Recordatorios</button>
       <button class="pestana oculta-pestana oculto" data-pa="arranque" id="pest-arranque">Deuda de arranque</button>
     </div>
@@ -1933,11 +1934,18 @@ async function refrescarAlq(){
   esqueleto("cuerpo-alq",
     pestAlq === "arranque"  ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
     : pestAlq === "servicios" ? huesoTarjeta(300, 1, 1) + huesoTarjeta(150, 4, 7)
+    : pestAlq === "garantias" ? huesoCifras(3) + huesoTarjeta(150, 4, 6)
                            : huesoTarjeta(180, 7, 7));
 
   if (pestAlq === "servicios") {
     await cargarServicios();
     pintarServicios();
+    esqueletoListo("cuerpo-alq");
+    return;
+  }
+
+  if (pestAlq === "garantias") {
+    await pintarGarantias();
     esqueletoListo("cuerpo-alq");
     return;
   }
@@ -1952,6 +1960,94 @@ async function refrescarAlq(){
 }
 
 $("flotante").addEventListener("click", () => fichaInquilino(null));
+
+// ---------- pestaña depósitos de garantía ----------
+// Una garantía no es un gasto: es plata tuya que está en el
+// bolsillo del dueño y vuelve al terminar el contrato.
+async function pintarGarantias(){
+  const [{data: casas, error: e1}, {data: lista, error: e2}] = await Promise.all([
+    sb.from("v_garantias_casa").select("*"),
+    sb.from("v_garantias").select("*").order("fecha_entrega")
+  ]);
+
+  if (e1 || e2) {
+    $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">
+      No pude leer las garantías.<br><br>${esc((e1 || e2).message)}<br><br>
+      Si dice que la vista no existe, corre <strong>registro-garantias.sql</strong> en Supabase.</p></div>`;
+    return;
+  }
+
+  const g      = lista || [];
+  const afuera = g.filter(x => !x.devuelta).reduce((t,x) => t + Number(x.monto||0), 0);
+  const vuelta = g.filter(x =>  x.devuelta).reduce((t,x) => t + Number(x.monto||0), 0);
+  const viejo  = g.filter(x => !x.devuelta)
+                  .reduce((a,x) => Number(x.meses_afuera||0) > a ? Number(x.meses_afuera) : a, 0);
+  const dobles = g.filter(x => x.tambien_es_gasto);
+  const monto2 = dobles.reduce((t,x) => t + Number(x.monto||0), 0);
+
+  $("cuerpo-alq").innerHTML = `
+    <div class="cifras">
+      <div class="cifra saldo"><span>AFUERA</span><strong>${S(afuera)}</strong></div>
+      <div class="cifra abonado"><span>YA DEVUELTA</span><strong>${S(vuelta)}</strong></div>
+      <div class="cifra"><span>DEPÓSITOS</span><strong>${g.length}</strong></div>
+    </div>
+
+    <div class="srv-nota" style="margin-top:22px">
+      <b>Esto no es un gasto.</b> Son ${S(afuera)} tuyos que están en el bolsillo de los
+      dueños y vuelven cuando termine cada contrato.
+      ${viejo > 0 ? ` El depósito más antiguo lleva <b>${viejo} meses</b> afuera.` : ""}
+      ${vuelta > 0 ? "" : " Todavía no te han devuelto ninguna."}
+    </div>
+
+    ${dobles.length ? `<div class="alerta" style="margin-top:18px">
+      <span>
+        <b>${dobles.length === 1 ? "Una garantía está" : dobles.length + " garantías están"}
+        contada${dobles.length === 1 ? "" : "s"} dos veces.</b>
+        ${S(monto2)} figuran aquí y además como gasto, así que están bajando la utilidad
+        de ese mes por algo que no se gastó: ${dobles.map(x => esc(x.casa)).join(", ")}.
+      </span></div>` : ""}
+
+    <div class="tarjeta">
+      <h4>Por casa</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Casa", "Desde", "Meses afuera", "Depósitos", "Afuera", "Devuelta", "Total"],
+        (casas || []).map(c => [
+          `<span class="chip" style="background:${srvColor(c.casa)}1A;color:${srvColor(c.casa)};border-color:${srvColor(c.casa)}55">
+             <i></i>${esc(c.casa)}</span>`,
+          c.desde || "—",
+          c.meses ?? "—",
+          c.depositos ?? 0,
+          `<strong>${S(c.afuera || 0)}</strong>`,
+          Number(c.ya_devuelta || 0) ? S(c.ya_devuelta) : `<span style="color:var(--gris-claro)">—</span>`,
+          S(c.total || 0)
+        ]), [2,3,4,5,6])}</div>
+    </div>
+
+    <div class="tarjeta">
+      <h4>Depósito por depósito · ${g.length}</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Entregada", "Casa", "A quién", "Meses de renta", "Monto", "Tiempo afuera", "Nota"],
+        g.map(x => ({clase: x.devuelta ? "anulada" : "", celdas: [
+          `${x.fecha_entrega || "—"}${x.fecha_estimada
+             ? ` <span class="etiqueta" title="No se conoce la fecha real de entrega">estimada</span>` : ""}`,
+          esc(x.casa || "—"),
+          esc(x.a_quien || "—"),
+          x.meses_renta ? x.meses_renta + " meses" : "—",
+          `<strong>${S(x.monto)}</strong>`,
+          x.devuelta
+            ? `<span style="color:var(--verde)">devuelta${x.fecha_devolucion ? " el " + x.fecha_devolucion : ""}</span>`
+            : `${x.meses_afuera} meses`,
+          (x.tambien_es_gasto
+             ? `<span class="etiqueta" style="background:#FDF4F7;color:#8A3550" title="Está registrada como gasto además de aquí">también es gasto</span> `
+             : "") + esc(x.nota || "")
+        ]})), [4])}</div>
+      <div class="pie-tarjeta">
+        <p class="vacio" style="text-align:left;padding:0">
+          Para corregir una fecha o anotar una devolución, por ahora se hace desde Supabase.
+          Las líneas están al final de <strong>registro-garantias.sql</strong>.</p>
+      </div>
+    </div>`;
+}
 
 // ---------- pestaña servicios · luz, gas y mantenimiento ----------
 // La paleta pasó el validador de daltonismo en las cuatro ranuras
