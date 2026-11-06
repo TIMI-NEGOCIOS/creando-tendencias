@@ -143,6 +143,50 @@
   .rinde-formula{border:1px solid var(--linea);border-radius:14px;padding:16px 18px;margin-bottom:14px}
   .rinde-formula h5{margin-bottom:10px}
 
+  /* ---------- CALENDARIO DE RESERVAS ---------- */
+  /* Siete columnas iguales. Sin hueco horizontal entre dias, para
+     que una reserva de tres noches se lea como una sola cinta y no
+     como tres cuadraditos sueltos. */
+  .cal-rejilla{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+    border:1px solid var(--linea);border-radius:14px;overflow:hidden;margin-top:16px;min-width:0}
+  .cal-dia-rotulo{padding:10px 4px;text-align:center;font-size:11.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--gris-claro);background:var(--lila-velo);
+    border-bottom:1px solid var(--linea)}
+  .cal-celda{min-height:84px;padding:6px 0 8px;border-right:1px solid var(--linea);
+    border-bottom:1px solid var(--linea);position:relative;min-width:0}
+  .cal-celda:nth-child(7n){border-right:0}
+  .cal-celda.fuera{background:#FBFAFC}
+  .cal-celda.fuera .cal-num{color:var(--gris-claro);opacity:.55}
+  .cal-celda.hoy{background:var(--lila-velo)}
+  .cal-num{font-size:13px;color:var(--gris);padding:0 8px 5px;display:block;
+    font-variant-numeric:tabular-nums}
+  .cal-celda.hoy .cal-num{color:var(--morado-hondo);font-weight:500}
+  .cal-cintas{display:flex;flex-direction:column;gap:3px}
+  /* La cinta toca los bordes de la celda; solo se redondea en el dia
+     que entra y en el dia de la ultima noche. */
+  .cal-cinta{height:19px;display:flex;align-items:center;cursor:pointer;
+    font-size:11px;color:#fff;white-space:nowrap;overflow:hidden;transition:.15s}
+  .cal-cinta:hover{filter:brightness(1.12)}
+  .cal-cinta.ini{border-radius:4px 0 0 4px;padding-left:7px}
+  .cal-cinta.fin{border-radius:0 4px 4px 0}
+  .cal-cinta.sola{border-radius:4px;padding-left:7px}
+  .cal-cinta.dudosa{background-image:repeating-linear-gradient(45deg,
+    rgba(255,255,255,.28) 0 4px,transparent 4px 8px)}
+  .cal-hueco{height:19px}
+  .cal-leyenda{display:flex;gap:16px;flex-wrap:wrap;align-items:center;
+    margin-top:14px;font-size:12.5px;color:var(--gris)}
+  .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
+  .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
+  .cal-aviso{border:1px solid #E8C9A8;background:#FDF8F2;border-radius:14px;
+    padding:14px 18px;margin-top:16px;font-size:13.5px;line-height:1.7;color:var(--gris)}
+  .cal-aviso b{color:var(--tinta);font-weight:500}
+  @media(max-width:640px){
+    .cal-celda{min-height:70px}
+    .cal-cinta{height:16px;font-size:0}
+    .cal-cinta.ini,.cal-cinta.sola{padding-left:0}
+    .cal-hueco{height:16px}
+  }
+
   /* ---------- GRAFICO DE SERVICIOS ---------- */
   .srv-barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-width:0}
   .srv-grupo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0}
@@ -605,7 +649,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v33 · lo que rinde</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v34 · calendario de reservas</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1929,6 +1973,7 @@ async function modAlquileres(){
       <button class="pestana" data-pa="propiedades">Propiedades</button>
       <button class="pestana" data-pa="servicios">Luz, gas y mantenimiento</button>
       <button class="pestana" data-pa="garantias">Depósitos de garantía</button>
+      <button class="pestana" data-pa="reservas">Reservas</button>
       <button class="pestana" data-pa="rinde">Lo que rinde</button>
       <button class="pestana" data-pa="recordatorios">Recordatorios</button>
       <button class="pestana oculta-pestana oculto" data-pa="arranque" id="pest-arranque">Deuda de arranque</button>
@@ -1967,6 +2012,7 @@ async function refrescarAlq(){
     pestAlq === "arranque"  ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
     : pestAlq === "servicios" ? huesoTarjeta(300, 1, 1) + huesoTarjeta(150, 4, 7)
     : pestAlq === "garantias" ? huesoCifras(3) + huesoTarjeta(150, 4, 6)
+    : pestAlq === "reservas"  ? huesoCifras(4) + huesoTarjeta(340, 1, 1) + huesoTarjeta(130, 3, 7)
     : pestAlq === "rinde"     ? huesoCifras(3) + huesoTarjeta(200, 5, 9)
                            : huesoTarjeta(180, 7, 7));
 
@@ -1985,6 +2031,13 @@ async function refrescarAlq(){
 
   if (pestAlq === "rinde") {
     await pintarRinde();
+    esqueletoListo("cuerpo-alq");
+    return;
+  }
+
+  if (pestAlq === "reservas") {
+    await cargarReservas();
+    pintarReservas();
     esqueletoListo("cuerpo-alq");
     return;
   }
@@ -2444,6 +2497,360 @@ async function pintarGarantias(){
           Las líneas están al final de <strong>registro-garantias.sql</strong>.</p>
       </div>
     </div>`;
+}
+
+// ---------- pestaña reservas · el calendario de Airbnb ----------
+// Una reserva no es un alquiler: es un rango de noches. Entrada el
+// 11 y salida el 14 son TRES noches (11, 12 y 13). El dia que se va
+// no se cobra y queda libre, asi que no se pinta.
+//
+// El dinero de una reserva NO entra en la utilidad hasta que se
+// pasa a Ingresos con el boton de cada fila. Eso es a proposito:
+// asi nada se cuenta dos veces y tu decides cuando.
+
+const RES_CANAL = {
+  airbnb:   {rotulo:"Airbnb",   color:"#C4526F"},
+  whatsapp: {rotulo:"WhatsApp", color:"#0E8FA8"},
+  directo:  {rotulo:"Directo",  color:"#6B4E9B"},
+  booking:  {rotulo:"Booking",  color:"#B07D2A"}
+};
+const resCanal = c => RES_CANAL[String(c || "directo").toLowerCase()] || RES_CANAL.directo;
+const RES_DIAS = ["lun","mar","mié","jue","vie","sáb","dom"];
+const RES_MESES = ["enero","febrero","marzo","abril","mayo","junio","julio",
+                   "agosto","setiembre","octubre","noviembre","diciembre"];
+const RES_MES3 = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+
+// "2026-11-07" se lee "sáb 7 nov". Sin new Date() sobre la cadena
+// pelada, que en Lima retrocede un día.
+function resFecha(iso){
+  if (!iso) return "—";
+  const [a, m, d] = iso.split("-").map(Number);
+  const dia = RES_DIAS[(new Date(a, m - 1, d).getDay() + 6) % 7];
+  return `${dia} ${d} ${RES_MES3[m - 1]}`;
+}
+
+let resMes     = new Date().toISOString().slice(0, 7);
+let resCasa    = null;      // null = todas
+let resAyuda   = false;
+let resDatos   = [];
+let resChoques = [];
+
+// Fechas sin zona horaria: "2026-11-11" se trata como texto, no como
+// Date, porque new Date("2026-11-11") en Lima retrocede un dia.
+const resDia = (a, m, d) =>
+  `${a}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+const resSuma = (iso, n) => {
+  const t = new Date(iso + "T12:00:00");
+  t.setDate(t.getDate() + n);
+  return t.toISOString().slice(0, 10);
+};
+// cubre = la noche de ese dia esta vendida
+const resCubre = (r, iso) => iso >= r.entrada && iso < r.salida;
+
+async function cargarReservas(){
+  const [r, c] = await Promise.all([
+    sb.from("v_reservas").select("*").order("entrada"),
+    sb.from("v_reservas_choque").select("*")
+  ]);
+  resDatos   = r.data || [];
+  resChoques = c.data || [];
+  // la primera vez, se abre en la casa que si tiene reservas
+  if (resCasa === null && resDatos.length) {
+    const casas = [...new Set(resDatos.filter(x => !x.anulado).map(x => x.propiedad))];
+    if (casas.length === 1) resCasa = casas[0];
+  }
+}
+
+function resFiltradas(){
+  return vivos(resDatos).filter(r => !resCasa || r.propiedad === resCasa);
+}
+
+// A cada reserva le toca un carril, para que se dibuje en la misma
+// altura todos los dias que dura y se lea como una sola cinta.
+function resCarriles(lista){
+  const carril = new Map();
+  const ocupado = [];   // ocupado[i] = hasta que fecha llega el carril i
+  lista.slice().sort((a,b) => a.entrada < b.entrada ? -1 : a.entrada > b.entrada ? 1 : a.id - b.id)
+    .forEach(r => {
+      let i = 0;
+      while (ocupado[i] && ocupado[i] > r.entrada) i++;
+      ocupado[i] = r.salida;
+      carril.set(r.id, i);
+    });
+  return {carril, cuantos: Math.max(ocupado.length, 1)};
+}
+
+function resCalendario(){
+  const [a, m] = resMes.split("-").map(Number);
+  const lista  = resFiltradas();
+  const {carril, cuantos} = resCarriles(lista);
+  const hoy    = new Date().toISOString().slice(0, 10);
+  const diasMes = new Date(a, m, 0).getDate();
+
+  // la rejilla arranca el lunes de la semana del dia 1
+  const prim = new Date(a, m - 1, 1);
+  const desp = (prim.getDay() + 6) % 7;          // lunes = 0
+  let cursor = resSuma(resDia(a, m, 1), -desp);
+  const celdas = [];
+  const total = Math.ceil((desp + diasMes) / 7) * 7;
+
+  for (let k = 0; k < total; k++) {
+    const iso  = cursor;
+    const esta = iso.slice(0, 7) === resMes;
+    const enEsteDia = lista.filter(r => resCubre(r, iso));
+    const cintas = [];
+    for (let c = 0; c < cuantos; c++) {
+      const r = enEsteDia.find(x => carril.get(x.id) === c);
+      if (!r) { cintas.push(`<div class="cal-hueco"></div>`); continue; }
+      const ini = r.entrada === iso;
+      const fin = resSuma(r.salida, -1) === iso;
+      const cl  = ini && fin ? "sola" : ini ? "ini" : fin ? "fin" : "";
+      const dudosa = r.monto_total == null ? " dudosa" : "";
+      // background-COLOR y no background: el atajo borraría el rayado
+      // de .dudosa, que es un background-image.
+      cintas.push(`<div class="cal-cinta ${cl}${dudosa}" data-res="${r.id}"
+        style="background-color:${resCanal(r.canal).color}"
+        title="${esc(r.huesped || resCanal(r.canal).rotulo)} · ${r.noches} ${r.noches===1?"noche":"noches"} · ${esc(r.entrada)} → ${esc(r.salida)}${r.monto_total==null?" · falta el monto":""}">
+        ${ini ? esc(r.huesped || resCanal(r.canal).rotulo) : ""}</div>`);
+    }
+    celdas.push(`<div class="cal-celda ${esta ? "" : "fuera"} ${iso === hoy ? "hoy" : ""}">
+      <span class="cal-num">${Number(iso.slice(8, 10))}</span>
+      <div class="cal-cintas">${cintas.join("")}</div></div>`);
+    cursor = resSuma(cursor, 1);
+  }
+
+  return `<div class="cal-rejilla">
+    ${RES_DIAS.map(d => `<div class="cal-dia-rotulo">${d}</div>`).join("")}
+    ${celdas.join("")}</div>`;
+}
+
+// Las noches de este mes, recortando las reservas que lo cruzan.
+function resNochesDelMes(){
+  const [a, m] = resMes.split("-").map(Number);
+  const ini = resDia(a, m, 1);
+  const fin = resSuma(resDia(a, m, new Date(a, m, 0).getDate()), 1);
+  let noches = 0;
+  resFiltradas().forEach(r => {
+    const d = (r.entrada > ini ? r.entrada : ini);
+    const h = (r.salida  < fin ? r.salida  : fin);
+    if (h > d) noches += Math.round((new Date(h) - new Date(d)) / 86400000);
+  });
+  return {noches, diasMes: new Date(a, m, 0).getDate()};
+}
+
+function pintarReservas(){
+  const lista = resFiltradas();
+  const delMes = lista.filter(r => r.entrada < resSuma(resMes + "-01", 32).slice(0,8) + "01"
+    && r.salida > resMes + "-01");
+  const {noches, diasMes} = resNochesDelMes();
+  const cobrado = delMes.reduce((t, r) => t + Number(r.monto_pagado || 0), 0);
+  const porCobrar = delMes.reduce((t, r) =>
+    t + (r.monto_total == null ? 0 : Number(r.falta_cobrar || 0)), 0);
+  const sinMonto = delMes.filter(r => r.monto_total == null).length;
+  const casas = [...new Set(vivos(resDatos).map(r => r.propiedad))].sort();
+  const anulados = resDatos.filter(r => r.anulado).length;
+  const [aa, mm] = resMes.split("-").map(Number);
+
+  $("cuerpo-alq").innerHTML = `
+    <div class="cifras">
+      <div class="cifra util"><span>NOCHES VENDIDAS</span><strong>${noches}</strong></div>
+      <div class="cifra"><span>OCUPACIÓN</span><strong>${Math.round(noches*100/diasMes)}%</strong></div>
+      <div class="cifra util"><span>COBRADO</span><strong>${S(cobrado)}</strong></div>
+      <div class="cifra ${sinMonto ? "egre" : ""}">
+        <span>${sinMonto ? "SIN MONTO" : "POR COBRAR"}</span>
+        <strong>${sinMonto ? sinMonto + (sinMonto===1?" reserva":" reservas") : S(porCobrar)}</strong></div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="srv-barra">
+        <div class="srv-grupo">
+          <button class="llano" data-res-mes="-1" title="Mes anterior">‹</button>
+          <strong style="font-size:15px;color:var(--morado-hondo);font-weight:400;
+            min-width:150px;text-align:center">${RES_MESES[mm-1]} ${aa}</strong>
+          <button class="llano" data-res-mes="1" title="Mes siguiente">›</button>
+        </div>
+        <div class="srv-sep"></div>
+        <div class="srv-grupo">
+          <button class="pastilla ${!resCasa ? "viva" : ""}" data-res-casa="*">Todas</button>
+          ${casas.map(p => `<button class="pastilla ${resCasa === p ? "viva" : ""}"
+            data-res-casa="${esc(p)}">${esc(p)}</button>`).join("")}
+        </div>
+        <div class="srv-sep"></div>
+        <button class="primario" style="padding:7px 18px;font-size:13px;width:auto;margin:0"
+          data-res-nueva="1">Nueva reserva</button>
+        <button class="llano" data-res-ayuda="1">${resAyuda ? "Ocultar" : "¿Cómo se lee?"}</button>
+      </div>
+
+      ${resAyuda ? `<div class="srv-nota">
+        <b>Cómo se cuentan las noches.</b> Una reserva que entra el 11 y sale el 14 son
+        <b>tres noches</b>: 11, 12 y 13. El día que se va no se cobra y queda libre para que
+        entre otro huésped el mismo día, así que el 14 no aparece pintado. Por eso dos reservas
+        pegadas —una que sale el 14 y otra que entra el 14— no son un choque.
+        <ul>
+          <li>El color es el canal por donde llegó: ${Object.keys(RES_CANAL).map(k =>
+            `<span style="color:${RES_CANAL[k].color}">${RES_CANAL[k].rotulo}</span>`).join(", ")}.
+            No cambia nunca.</li>
+          <li>Las cintas <b>rayadas</b> son reservas a las que todavía les falta el monto.</li>
+          <li><b>Ocupación</b> es noches vendidas entre los días del mes, contando el
+            departamento completo. Si alquilas cuarto por cuarto esto hay que cambiarlo.</li>
+          <li><b>Cobrado</b> es lo que ya entró de estas reservas. No está en la utilidad
+            hasta que uses el botón <i>Pasar a Ingresos</i> de cada fila.</li>
+        </ul></div>` : ""}
+
+      ${resCalendario()}
+
+      <div class="cal-leyenda">
+        ${Object.keys(RES_CANAL).map(k =>
+          `<span><i style="background:${RES_CANAL[k].color}"></i>${RES_CANAL[k].rotulo}</span>`).join("")}
+        <span><i style="background-color:var(--gris-claro);background-image:repeating-linear-gradient(45deg,
+          rgba(255,255,255,.5) 0 3px,transparent 3px 6px)"></i>le falta el monto</span>
+      </div>
+
+      ${resChoques.length ? `<div class="cal-aviso">
+        <b>Ojo: hay reservas que se pisan.</b>
+        <ul style="margin:8px 0 0;padding-left:18px">${resChoques.map(c =>
+          `<li>${esc(c.propiedad)} · ${esc(c.donde)}: ${esc(resCanal(c.huesped_a).rotulo === "Directo"
+              && !RES_CANAL[String(c.huesped_a).toLowerCase()] ? c.huesped_a : resCanal(c.huesped_a).rotulo)}
+            y ${esc(resCanal(c.huesped_b).rotulo === "Directo"
+              && !RES_CANAL[String(c.huesped_b).toLowerCase()] ? c.huesped_b : resCanal(c.huesped_b).rotulo)}
+            coinciden del ${resFecha(c.se_pisan_desde)} al ${resFecha(c.se_pisan_hasta)}</li>`).join("")}</ul>
+        </div>` : ""}
+    </div>
+
+    <div class="tarjeta">
+      <div class="cabecera-tarjeta"><h4>Las reservas de ${RES_MESES[mm-1]}</h4></div>
+      <div class="tabla-scroll">${tabla(
+        ["Entrada","Salida","Noches","Dónde","Huésped","Canal","Pagado","Total","Por noche","Estado","En utilidad",""],
+        delMes.slice().sort((a,b) => a.entrada < b.entrada ? -1 : 1).map(r => ({celdas:[
+          resFecha(r.entrada), resFecha(r.salida), r.noches,
+          esc(r.propiedad) + " · " + esc(r.habitacion || "todo el depa"),
+          esc(r.huesped || "—"),
+          {html:`<span style="display:inline-flex;align-items:center;gap:7px">
+            <i style="width:9px;height:9px;border-radius:3px;flex:none;
+              background:${resCanal(r.canal).color}"></i>${resCanal(r.canal).rotulo}${
+              r.codigo ? " · " + esc(r.codigo) : ""}</span>`, titulo:""},
+          S(r.monto_pagado),
+          r.monto_total == null ? `<span style="color:#B07D2A">falta</span>` : S(r.monto_total),
+          r.por_noche == null ? "—" : S(r.por_noche),
+          esc(r.estado) + selloAnulado(r),
+          r.ingreso_id
+            ? `<span class="audit pagado">sí</span>`
+            : `<button class="secundario" style="padding:5px 12px;font-size:12px"
+                 data-res-ingreso="${r.id}"
+                 title="Registra ${S(r.monto_pagado)} como ingreso de ${esc(r.propiedad)} · recién ahí entra en la utilidad"
+                 ${Number(r.monto_pagado) > 0 ? "" : "disabled"}>Pasar a Ingresos</button>`,
+          {html:`<span class="acc"><button data-res-editar="${r.id}" title="Editar">${IC.lapiz}</button>
+            ${botonAnular("reservas", r, "reserva")}</span>`, titulo:""}
+        ]})), [2,6,7,8])}</div>
+      <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
+    </div>`;
+}
+
+document.addEventListener("click", (e) => {
+  const m = e.target.closest("[data-res-mes]");
+  if (m) {
+    const [a, mes] = resMes.split("-").map(Number);
+    const d = new Date(a, mes - 1 + Number(m.dataset.resMes), 1);
+    resMes = d.toISOString().slice(0, 7);
+    return pintarReservas();
+  }
+  const c = e.target.closest("[data-res-casa]");
+  if (c) { resCasa = c.dataset.resCasa === "*" ? null : c.dataset.resCasa; return pintarReservas(); }
+  const y = e.target.closest("[data-res-ayuda]");
+  if (y) { resAyuda = !resAyuda; return pintarReservas(); }
+  const n = e.target.closest("[data-res-nueva]");
+  if (n) return fichaReserva(null);
+  const ed = e.target.closest("[data-res-editar]");
+  if (ed) return fichaReserva(Number(ed.dataset.resEditar));
+  const ci = e.target.closest(".cal-cinta[data-res]");
+  if (ci) return fichaReserva(Number(ci.dataset.res));
+  const pi = e.target.closest("[data-res-ingreso]");
+  if (pi) return reservaAIngresos(Number(pi.dataset.resIngreso));
+});
+
+function fichaReserva(id){
+  const r = id ? resDatos.find(x => x.id === id) : null;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const casas = PROPIEDADES.slice().sort();
+  abrirFicha(r ? "Editar reserva" : "Nueva reserva", `
+    <div class="rejilla">
+      <div><label>Propiedad</label><select id="r-prop">${casas.map(p =>
+        `<option ${r?.propiedad === p || (!r && p === "BHSOUTH") ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+      <div><label>Habitación</label><input id="r-hab" value="${esc(r?.habitacion || "")}"
+        placeholder="en blanco = todo el depa"></div>
+      <div><label>Entrada</label><input id="r-ent" type="date" value="${esc(r?.entrada || hoy)}"></div>
+      <div><label>Salida</label><input id="r-sal" type="date"
+        value="${esc(r?.salida || resSuma(hoy, 1))}"></div>
+      <div><label>Huésped</label><input id="r-hue" value="${esc(r?.huesped || "")}"></div>
+      <div><label>Canal</label><select id="r-can">${Object.keys(RES_CANAL).map(k =>
+        `<option value="${k}" ${String(r?.canal||"directo").toLowerCase() === k ? "selected" : ""}
+          >${RES_CANAL[k].rotulo}</option>`).join("")}</select></div>
+      <div><label>Código o volante</label><input id="r-cod" value="${esc(r?.codigo || "")}"
+        placeholder="Volante 002"></div>
+      <div><label>Personas</label><input id="r-per" type="number" min="1"
+        value="${r?.personas ?? ""}"></div>
+      <div><label>Total de la estadía</label><input id="r-tot" type="number" step="0.01"
+        value="${r?.monto_total ?? ""}" placeholder="déjalo en blanco si aún no lo sabes"></div>
+      <div><label>Ya pagado</label><input id="r-pag" type="number" step="0.01"
+        value="${r?.monto_pagado ?? 0}"></div>
+    </div>
+    <label>Nota</label><input id="r-nota" value="${esc(r?.nota || "")}">
+    <p class="vacio" style="text-align:left;padding:8px 0 0">
+      La salida es el día que se va y no se cobra: entrada 11 y salida 14 son 3 noches.</p>`,
+    async () => {
+      const fila = {
+        propiedad: $("r-prop").value,
+        habitacion: $("r-hab").value.trim() || null,
+        entrada: $("r-ent").value, salida: $("r-sal").value,
+        huesped: $("r-hue").value.trim() || null,
+        canal: $("r-can").value,
+        codigo: $("r-cod").value.trim() || null,
+        personas: $("r-per").value ? Number($("r-per").value) : null,
+        monto_total: $("r-tot").value === "" ? null : Number($("r-tot").value),
+        monto_pagado: Number($("r-pag").value) || 0,
+        nota: $("r-nota").value.trim() || null
+      };
+      if (!fila.entrada || !fila.salida) return "Faltan las fechas.";
+      if (fila.salida <= fila.entrada) return "La salida tiene que ser después de la entrada.";
+      if (fila.monto_total != null && fila.monto_pagado > fila.monto_total)
+        return "Lo pagado no puede ser mayor que el total.";
+      const {error} = id
+        ? await sb.from("reservas").update(fila).eq("id", id)
+        : await sb.from("reservas").insert(fila);
+      return error ? "No se guardó: " + error.message : null;
+    },
+    id ? async () => {
+      const {data: s} = await sb.auth.getUser();
+      const {error} = await sb.from("reservas").update({anulado:true,
+        anulado_en:new Date().toISOString(), anulado_por:s?.user?.id || null}).eq("id", id);
+      return error ? error.message : null;
+    } : null);
+}
+
+// Pasa el dinero cobrado de una reserva a Ingresos. Recien ahi entra
+// en la utilidad. Guarda el id del ingreso en la reserva para que no
+// se pueda hacer dos veces.
+async function reservaAIngresos(id){
+  const r = resDatos.find(x => x.id === id);
+  if (!r) return;
+  if (r.ingreso_id) return alert("Esta reserva ya está en Ingresos.");
+  if (!(Number(r.monto_pagado) > 0)) return alert("Esta reserva no tiene nada cobrado todavía.");
+  if (!confirm(`¿Registrar ${S(r.monto_pagado)} como ingreso de ${r.propiedad}?\n\n`
+    + `Recién ahí entra en la utilidad del mes. No genera comisión de alquiler.`)) return;
+
+  const {data, error} = await sb.from("ing_alquiler").insert({
+    fecha: r.entrada, propiedad: r.propiedad, habitacion: r.habitacion || "",
+    inquilino: r.huesped || (r.codigo || resCanal(r.canal).rotulo),
+    concepto: "airbnb", monto: Number(r.monto_pagado), comision: 0,
+    nota: `Reserva ${r.entrada} → ${r.salida} · ${r.noches} `
+          + `${r.noches === 1 ? "noche" : "noches"} · ${resCanal(r.canal).rotulo}`
+          + (r.codigo ? " · " + r.codigo : "")
+  }).select().single();
+
+  if (error) return alert("No se registró: " + error.message);
+  const {error: e2} = await sb.from("reservas").update({ingreso_id: data.id}).eq("id", id);
+  if (e2) alert("El ingreso se creó, pero no se pudo marcar la reserva: " + e2.message);
+  refrescarAlq();
 }
 
 // ---------- pestaña servicios · luz, gas y mantenimiento ----------
