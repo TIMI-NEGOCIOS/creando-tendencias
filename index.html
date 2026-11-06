@@ -112,6 +112,37 @@
   .pestana:hover{border-color:var(--lila);color:var(--morado-hondo)}
   .pestana.viva{background:var(--morado-hondo);border-color:var(--morado-hondo);color:#fff}
 
+  /* ---------- LO QUE RINDE ---------- */
+  .rinde-abre{display:inline-flex;align-items:center;gap:9px;color:var(--gris)}
+  .rinde-abre:hover{color:var(--morado-hondo)}
+  tr.rinde-viva > td{background:var(--brillo)}
+  tr.rinde-fila-detalle > td{padding:0;background:var(--brillo);border-bottom:1px solid var(--linea)}
+  tr.rinde-total > td{background:var(--lila-velo);font-weight:400;color:var(--morado-hondo)}
+  .rinde-detalle{padding:22px 24px 26px}
+  .rinde-tit{font-size:13px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--gris-claro);font-weight:400;margin-bottom:8px}
+  .rinde-cols{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .rinde-bloque{border:1px solid var(--linea);border-radius:14px;padding:14px 16px;background:#fff}
+  .rinde-bloque h5{font-size:13.5px;font-weight:500;color:var(--tinta);margin-bottom:6px;
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .rinde-bloque h5 span{font-weight:400;color:var(--morado-hondo);font-variant-numeric:tabular-nums}
+  table.rinde-mini{width:100%;font-size:12.5px;margin:0}
+  table.rinde-mini td{padding:5px 6px;border-bottom:1px solid #F5F1F7;color:var(--gris);
+    vertical-align:top}
+  table.rinde-mini tr:last-child td{border-bottom:none}
+  table.rinde-mini td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--tinta);
+    white-space:nowrap}
+  table.rinde-mini tr.suma td{border-top:1px solid var(--linea);color:var(--tinta);padding-top:7px}
+  table.rinde-mini.formulas td:first-child{color:var(--tinta);white-space:nowrap}
+  table.rinde-mini.formulas td:nth-child(2){color:var(--gris-claro);font-size:12px}
+  table.rinde-mini.formulas td b{color:var(--morado-hondo);font-weight:500}
+  .rinde-suma{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-top:12px;
+    padding:11px 16px;border:1px solid var(--linea);border-radius:12px;background:#fff;
+    font-size:13px;color:var(--gris)}
+  .rinde-suma strong{color:var(--morado-hondo);font-weight:500;font-variant-numeric:tabular-nums}
+  .rinde-formula{border:1px solid var(--linea);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+  .rinde-formula h5{margin-bottom:10px}
+
   /* ---------- GRAFICO DE SERVICIOS ---------- */
   .srv-barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-width:0}
   .srv-grupo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0}
@@ -574,7 +605,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v32 · garantías como activo</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v33 · lo que rinde</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1898,6 +1929,7 @@ async function modAlquileres(){
       <button class="pestana" data-pa="propiedades">Propiedades</button>
       <button class="pestana" data-pa="servicios">Luz, gas y mantenimiento</button>
       <button class="pestana" data-pa="garantias">Depósitos de garantía</button>
+      <button class="pestana" data-pa="rinde">Lo que rinde</button>
       <button class="pestana" data-pa="recordatorios">Recordatorios</button>
       <button class="pestana oculta-pestana oculto" data-pa="arranque" id="pest-arranque">Deuda de arranque</button>
     </div>
@@ -1935,6 +1967,7 @@ async function refrescarAlq(){
     pestAlq === "arranque"  ? huesoCifras(4) + huesoTarjeta(160, 5, 5)
     : pestAlq === "servicios" ? huesoTarjeta(300, 1, 1) + huesoTarjeta(150, 4, 7)
     : pestAlq === "garantias" ? huesoCifras(3) + huesoTarjeta(150, 4, 6)
+    : pestAlq === "rinde"     ? huesoCifras(3) + huesoTarjeta(200, 5, 9)
                            : huesoTarjeta(180, 7, 7));
 
   if (pestAlq === "servicios") {
@@ -1950,6 +1983,12 @@ async function refrescarAlq(){
     return;
   }
 
+  if (pestAlq === "rinde") {
+    await pintarRinde();
+    esqueletoListo("cuerpo-alq");
+    return;
+  }
+
   await cargarAlq();
   if (pestAlq === "inquilinos") pintarInquilinos();
   else if (pestAlq === "pagos") vistaPagos === "propiedad" ? pintarPagos() : pintarCumplimiento();
@@ -1960,6 +1999,364 @@ async function refrescarAlq(){
 }
 
 $("flotante").addEventListener("click", () => fichaInquilino(null));
+
+// ---------- pestaña lo que rinde ----------
+// Lo mismo que el Excel, pero leyendo de la base. Cada casa se
+// despliega para ver los costos uno por uno, y hay un botón que
+// enseña las fórmulas con los números de esa casa puestos.
+let rindeAbiertas = new Set();
+let rindeFormulas = false;
+let rindeDatos    = null;
+
+// La clase de cada gasto se decide por su propio nombre, sin
+// unirse a conceptos: dos fichas que se escriben igual no pueden
+// duplicar nada.
+function rindeClase(cat){
+  const c = String(cat || "").toLowerCase().trim();
+  if (/renta al due/.test(c) || c === "alquiler")              return "renta";
+  if (/garant/.test(c) && !/devoluc/.test(c))                  return "garantia";
+  if (/mueble|mobiliario|inversi|lavadora|colch|refriger/.test(c)) return "capital";
+  if (/luz|gas|internet|manteni|arbitrio|web/.test(c))         return "fijo";
+  return "variable";
+}
+function rindeServicio(cat){
+  const c = String(cat || "").toLowerCase();
+  if (c.includes("luz"))      return "luz";
+  if (c.includes("gas"))      return "gas";
+  if (c.includes("internet")) return "internet";
+  if (c.includes("manteni"))  return "mantenimiento";
+  return null;
+}
+
+// Los tres meses completos más recientes. Hoy no cuenta: el mes
+// en curso siempre está a medias y ensucia el promedio.
+function rindeVentana(){
+  const hoy = new Date();
+  const fin = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+  const ini = new Date(hoy.getFullYear(), hoy.getMonth() - 3, 1);
+  const d = (x) => x.getFullYear() + "-" +
+                   String(x.getMonth() + 1).padStart(2, "0") + "-" +
+                   String(x.getDate()).padStart(2, "0");
+  const meses = [];
+  for (let k = 3; k >= 1; k--){
+    const m = new Date(hoy.getFullYear(), hoy.getMonth() - k, 1);
+    meses.push(m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0"));
+  }
+  return {desde: d(ini), hasta: d(fin), meses};
+}
+
+async function pintarRinde(){
+  const v = rindeVentana();
+  const [eg, ig, gar, props] = await Promise.all([
+    sb.from("egr_alquiler").select("id, fecha, propiedad, categoria, categoria_texto, monto, descripcion, anulado"),
+    sb.from("ing_alquiler").select("id, fecha, propiedad, monto, anulado"),
+    sb.from("v_garantias_casa").select("*"),
+    sb.from("config_propiedad").select("propiedad, activa, habitaciones, remodelacion").order("propiedad")
+  ]);
+
+  if (eg.error || ig.error || props.error) {
+    $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">
+      ${esc((eg.error || ig.error || props.error).message)}</p></div>`;
+    return;
+  }
+  const faltaRemod = props.error || (props.data || []).some(p => p.remodelacion === undefined);
+  const faltaGar   = !!gar.error;
+
+  const egresos  = vivos(eg.data || []);
+  const ingresos = vivos(ig.data || []);
+  const casas    = (props.data || []).filter(p => p.activa).map(p => p.propiedad);
+  const remod    = Object.fromEntries((props.data || []).map(p => [p.propiedad, Number(p.remodelacion || 0)]));
+  const cuartos  = Object.fromEntries((props.data || []).map(p => [p.propiedad, p.habitaciones]));
+  const garan    = Object.fromEntries((gar.data || []).map(g => [g.casa, Number(g.afuera || g.total || 0)]));
+
+  const enVentana = (f) => {
+    const m = String(f || "").slice(0, 7);
+    return v.meses.includes(m);
+  };
+
+  rindeDatos = casas.map(casa => {
+    const egC = egresos.filter(e => e.propiedad === casa);
+    const igC = ingresos.filter(i => i.propiedad === casa && enVentana(i.fecha));
+
+    // Los meses que esta casa existió de verdad dentro de la ventana.
+    // ESMERALDA llegó en octubre: dividir su octubre entre tres meses
+    // la haría parecer tres veces más barata y tres veces menos rentable
+    // de lo que es.
+    const activos = v.meses.filter(m =>
+      igC.some(i => String(i.fecha).slice(0, 7) === m) ||
+      egC.some(e => String(e.fecha).slice(0, 7) === m));
+    const nMeses = activos.length || 1;
+
+    const cobrado = igC.reduce((t, i) => t + Number(i.monto || 0), 0) / nMeses;
+
+    // renta: la más alta de un mes, no el promedio. El promedio se
+    // diluye con los meses que todavía no se registran.
+    const porMes = {};
+    egC.filter(e => enVentana(e.fecha) && rindeClase(e.categoria_texto || e.categoria) === "renta")
+       .forEach(e => {
+         const m = String(e.fecha).slice(0, 7);
+         porMes[m] = (porMes[m] || 0) + Number(e.monto || 0);
+       });
+    const renta = Object.values(porMes).length ? Math.max(...Object.values(porMes)) : 0;
+
+    // servicios: cada movimiento de luz, gas, internet y mantenimiento
+    const servMovs = egC.filter(e => enVentana(e.fecha) && rindeServicio(e.categoria_texto || e.categoria));
+    const servicios = servMovs.reduce((t, e) => t + Number(e.monto || 0), 0) / nMeses;
+
+    const porServicio = {};
+    servMovs.forEach(e => {
+      const s = rindeServicio(e.categoria_texto || e.categoria);
+      (porServicio[s] ||= []).push(e);
+    });
+
+    // muebles: todos, de cualquier mes. No es un costo mensual.
+    const muebMovs = egC.filter(e => rindeClase(e.categoria_texto || e.categoria) === "capital");
+    const muebles  = muebMovs.reduce((t, e) => t + Number(e.monto || 0), 0);
+
+    const re   = remod[casa] || 0;
+    const ga   = garan[casa] || 0;
+    const noVuelve   = re + muebles;
+    const capitalTot = re + ga + muebles;
+    const margen     = cobrado - renta - servicios;
+    const anual      = margen * 12;
+
+    return {casa, cuartos: cuartos[casa], cobrado, renta, servicios, margen, anual,
+            remodelacion: re, garantia: ga, muebles, noVuelve, capitalTot,
+            anos:  noVuelve <= 0 ? "nada que recuperar" : (anual > 0 ? noVuelve / anual : null),
+            rinde: capitalTot > 0 ? anual / capitalTot : null,
+            porServicio, muebMovs, igC, porMes, meses: v.meses, activos, nMeses};
+  });
+
+  const tot = rindeDatos.reduce((a, d) => ({
+    cobrado: a.cobrado + d.cobrado, renta: a.renta + d.renta,
+    servicios: a.servicios + d.servicios, margen: a.margen + d.margen,
+    anual: a.anual + d.anual, noVuelve: a.noVuelve + d.noVuelve,
+    capitalTot: a.capitalTot + d.capitalTot
+  }), {cobrado:0, renta:0, servicios:0, margen:0, anual:0, noVuelve:0, capitalTot:0});
+
+  const rotulo = (m) => {
+    const MES3 = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+    return MES3[Number(m.slice(5, 7)) - 1] + " " + m.slice(2, 4);
+  };
+
+  // ---------- el detalle que se despliega ----------
+  const detalle = (d) => {
+    const bloque = (titulo, movs, nota) => {
+      if (!movs || !movs.length)
+        return `<div class="rinde-bloque"><h5>${titulo}</h5>
+                  <p class="vacio" style="padding:8px 0;text-align:left">${nota || "Sin movimientos registrados."}</p></div>`;
+      const total = movs.reduce((t, m) => t + Number(m.monto || 0), 0);
+      return `<div class="rinde-bloque">
+        <h5>${titulo}<span>${S(total)}${movs.length > 1 ? ` · ${movs.length} pagos` : ""}</span></h5>
+        <table class="rinde-mini">${movs
+          .slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))
+          .map(m => `<tr>
+            <td>${String(m.fecha).slice(0, 10)}</td>
+            <td class="num">${S(m.monto)}</td>
+            <td>${esc(m.descripcion || "")}</td></tr>`).join("")}</table></div>`;
+    };
+
+    const ingMes = {};
+    d.igC.forEach(i => {
+      const m = String(i.fecha).slice(0, 7);
+      ingMes[m] = (ingMes[m] || 0) + Number(i.monto || 0);
+    });
+
+    return `<div class="rinde-detalle">
+      <div class="rinde-cols">
+        <div>
+          <h4 class="rinde-tit">Lo que entra</h4>
+          <table class="rinde-mini">${d.meses.map(m =>
+            `<tr><td>${rotulo(m)}</td><td class="num">${S(ingMes[m] || 0)}</td>
+                 <td>${!ingMes[m] ? "sin ingresos ese mes" : ""}</td></tr>`).join("")}
+            <tr class="suma"><td>promedio al mes</td><td class="num">${S(d.cobrado)}</td><td></td></tr>
+          </table>
+        </div>
+        <div>
+          <h4 class="rinde-tit">La renta al dueño</h4>
+          <table class="rinde-mini">${d.meses.map(m =>
+            `<tr><td>${rotulo(m)}</td><td class="num">${S(d.porMes[m] || 0)}</td>
+                 <td>${!d.porMes[m] ? "sin registrar" : ""}</td></tr>`).join("")}
+            <tr class="suma"><td>la más alta</td><td class="num">${S(d.renta)}</td><td></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <h4 class="rinde-tit" style="margin-top:20px">Los servicios, uno por uno</h4>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">
+        Todo lo de ${d.meses.map(rotulo).join(", ")}. El promedio divide entre ${d.nMeses}
+        ${d.nMeses === 1 ? "mes" : "meses"}${d.nMeses < d.meses.length
+          ? ", que son los que esta casa lleva contigo" : ""}.</p>
+      <div class="rinde-cols">
+        ${bloque("Luz",           d.porServicio.luz)}
+        ${bloque("Gas",           d.porServicio.gas,
+                 d.casa === "ESMERALDA" ? "Sin movimientos registrados." : "Esta casa no paga gas.")}
+        ${bloque("Internet",      d.porServicio.internet)}
+        ${bloque("Mantenimiento", d.porServicio.mantenimiento)}
+      </div>
+      <div class="rinde-suma">
+        <span>Servicios de ${d.nMeses === 1 ? "ese mes" : "esos " + d.nMeses + " meses"}</span>
+        <strong>${S(d.servicios * d.nMeses)}</strong>
+        <span>÷ ${d.nMeses} ${d.nMeses === 1 ? "mes" : "meses"}</span>
+        <strong>${S(d.servicios)} al mes</strong>
+      </div>
+
+      <h4 class="rinde-tit" style="margin-top:22px">El capital puesto</h4>
+      <div class="rinde-cols">
+        <div class="rinde-bloque">
+          <h5>Remodelación<span>${S(d.remodelacion)}</span></h5>
+          <p class="vacio" style="text-align:left;padding:6px 0">
+            ${d.remodelacion ? "No vuelve como plata: vuelve como cuartos alquilables."
+                             : "Esta casa no tiene remodelación asignada."}</p>
+        </div>
+        <div class="rinde-bloque">
+          <h5>Garantía<span>${S(d.garantia)}</span></h5>
+          <p class="vacio" style="text-align:left;padding:6px 0">
+            ${d.garantia ? "Vuelve entera al terminar el contrato."
+                         : "Esta casa no tiene garantía registrada."}</p>
+        </div>
+        ${bloque("Muebles", d.muebMovs, "Sin muebles registrados.")}
+      </div>
+    </div>`;
+  };
+
+  // ---------- las fórmulas, con los números de cada casa ----------
+  const formulas = () => `
+    <div class="tarjeta">
+      <h4>Cómo se calcula cada columna</h4>
+      <p class="vacio" style="text-align:left;padding:0 0 16px">
+        Las mismas fórmulas del Excel, con los números de cada casa puestos.
+        Todo sale de ${v.meses.map(rotulo).join(", ")}, que son los tres meses completos.</p>
+      ${rindeDatos.map(d => `
+        <div class="rinde-formula">
+          <h5><span class="chip" style="background:${srvColor(d.casa)}1A;color:${srvColor(d.casa)};border-color:${srvColor(d.casa)}55">
+            <i></i>${esc(d.casa)}</span></h5>
+          <table class="rinde-mini formulas">
+            <tr><td>cobrado al mes</td>
+                <td>lo cobrado ÷ los ${d.nMeses} ${d.nMeses === 1 ? "mes" : "meses"} que lleva contigo</td>
+                <td class="num">${S(d.cobrado * d.nMeses)} ÷ ${d.nMeses} = <b>${S(d.cobrado)}</b></td></tr>
+            <tr><td>renta al dueño</td>
+                <td>la renta más alta de un mes</td>
+                <td class="num"><b>${S(d.renta)}</b></td></tr>
+            <tr><td>servicios</td>
+                <td>luz + gas + internet + mantenimiento ÷ ${d.nMeses}</td>
+                <td class="num">${S(d.servicios * d.nMeses)} ÷ ${d.nMeses} = <b>${S(d.servicios)}</b></td></tr>
+            <tr><td>margen al mes</td>
+                <td>cobrado − renta − servicios</td>
+                <td class="num">${S(d.cobrado)} − ${S(d.renta)} − ${S(d.servicios)} = <b>${S(d.margen)}</b></td></tr>
+            <tr><td>margen al año</td>
+                <td>margen al mes × 12</td>
+                <td class="num">${S(d.margen)} × 12 = <b>${S(d.anual)}</b></td></tr>
+            <tr><td>capital que no vuelve</td>
+                <td>remodelación + muebles</td>
+                <td class="num">${S(d.remodelacion)} + ${S(d.muebles)} = <b>${S(d.noVuelve)}</b></td></tr>
+            <tr><td>capital total</td>
+                <td>remodelación + garantía + muebles</td>
+                <td class="num">${S(d.remodelacion)} + ${S(d.garantia)} + ${S(d.muebles)} = <b>${S(d.capitalTot)}</b></td></tr>
+            <tr><td>años para recuperarlo</td>
+                <td>capital que no vuelve ÷ margen al año</td>
+                <td class="num">${d.anos === null
+                   ? "<b>no se recupera</b> · el margen es cero o negativo"
+                   : typeof d.anos === "string"
+                     ? "<b>nada que recuperar</b> · no hay capital puesto en esta casa"
+                     : `${S(d.noVuelve)} ÷ ${S(d.anual)} = <b>${d.anos.toFixed(1)} años</b>`}</td></tr>
+            <tr><td>rinde al año</td>
+                <td>margen al año ÷ capital total</td>
+                <td class="num">${d.rinde === null
+                   ? "<b>—</b> · no hay capital registrado"
+                   : `${S(d.anual)} ÷ ${S(d.capitalTot)} = <b>${(d.rinde * 100).toFixed(1)}%</b>`}</td></tr>
+          </table>
+        </div>`).join("")}
+      <div class="srv-nota" style="margin-top:4px">
+        <b>Por qué la garantía no entra en los años.</b> Esa plata vuelve sola al terminar el
+        contrato, sin que la casa tenga que producirla. Si la metiera en esa cuenta, cada casa
+        parecería tardar años de más en devolverte algo que ya tienes asegurado. Sí entra en
+        "rinde al año", porque ahí la pregunta es otra: cuánto produce cada sol que tienes puesto.
+      </div>
+    </div>`;
+
+  // ---------- la tabla ----------
+  const filas = [];
+  rindeDatos.forEach(d => {
+    const abierta = rindeAbiertas.has(d.casa);
+    filas.push({clase: abierta ? "rinde-viva" : "", celdas: [
+      {html: `<button class="rinde-abre" data-rinde="${esc(d.casa)}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                     stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                     style="transform:rotate(${abierta ? 90 : 0}deg);transition:.2s"><path d="M9 18l6-6-6-6"/></svg>
+                <span class="chip" style="background:${srvColor(d.casa)}1A;color:${srvColor(d.casa)};border-color:${srvColor(d.casa)}55">
+                  <i></i>${esc(d.casa)}</span></button>`,
+       clase: "rinde-casa", titulo: "Clic para ver los costos uno por uno"},
+      S(d.cobrado), S(d.renta), S(d.servicios),
+      `<strong style="color:${d.margen >= 0 ? "var(--verde)" : "var(--alerta)"}">${S(d.margen)}</strong>`,
+      S(d.anual), S(d.noVuelve),
+      d.anos === null ? `<span style="color:var(--gris-claro)">no se recupera</span>`
+        : typeof d.anos === "string" ? `<span style="color:var(--gris-claro)">${d.anos}</span>`
+        : d.anos.toFixed(1) + " años",
+      d.rinde === null ? `<span style="color:var(--gris-claro)">—</span>`
+                       : `<strong>${(d.rinde * 100).toFixed(1)}%</strong>`
+    ]});
+    if (abierta)
+      filas.push({clase: "rinde-fila-detalle",
+                  celdas: [{html: detalle(d), datos: 'colspan="9"', titulo: ""}]});
+  });
+
+  filas.push({clase: "rinde-total", celdas: [
+    "TOTAL", S(tot.cobrado), S(tot.renta), S(tot.servicios),
+    `<strong>${S(tot.margen)}</strong>`, S(tot.anual), S(tot.noVuelve),
+    tot.anual > 0 ? (tot.noVuelve / tot.anual).toFixed(1) + " años" : "—",
+    tot.capitalTot > 0 ? `<strong>${(tot.anual / tot.capitalTot * 100).toFixed(1)}%</strong>` : "—"
+  ]});
+
+  $("cuerpo-alq").innerHTML = `
+    <div class="cifras">
+      <div class="cifra"><span>MARGEN AL MES</span><strong>${S(tot.margen)}</strong></div>
+      <div class="cifra saldo"><span>CAPITAL PUESTO</span><strong>${S(tot.capitalTot)}</strong></div>
+      <div class="cifra abonado"><span>RINDE AL AÑO</span><strong>${
+        tot.capitalTot > 0 ? (tot.anual / tot.capitalTot * 100).toFixed(1) + "%" : "—"}</strong></div>
+    </div>
+
+    ${faltaGar || faltaRemod ? `<div class="alerta" style="margin-top:18px"><span>
+      Falta correr <strong>${faltaRemod ? "remodelacion.sql" : "garantias-v2.sql"}</strong> en Supabase.
+      Mientras tanto el capital de esta pestaña sale incompleto.</span></div>` : ""}
+
+    <div class="srv-barra" style="margin-top:22px">
+      <button class="llano" data-rinde-formulas="1">
+        ${rindeFormulas ? "Ocultar las fórmulas" : "Ver las fórmulas exactas"}</button>
+      <button class="llano" data-rinde-todas="1">
+        ${rindeAbiertas.size ? "Cerrar todas" : "Abrir todas"}</button>
+      <span style="font-size:12.5px;color:var(--gris-claro);align-self:center">
+        Clic en una casa para ver sus costos uno por uno</span>
+    </div>
+
+    ${rindeFormulas ? formulas() : ""}
+
+    <div class="tarjeta">
+      <h4>Lo que rinde cada casa · ${v.meses.map(rotulo).join(", ")}</h4>
+      <div class="tabla-scroll">${tabla(
+        ["Casa", "Cobrado al mes", "Renta al dueño", "Servicios", "Margen al mes",
+         "Margen al año", "Capital que no vuelve", "Años para recuperarlo", "Rinde al año"],
+        filas, [1,2,3,4,5,6,7,8])}</div>
+    </div>`;
+}
+
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-rinde]");
+  if (a) {
+    const c = a.dataset.rinde;
+    rindeAbiertas.has(c) ? rindeAbiertas.delete(c) : rindeAbiertas.add(c);
+    return pintarRinde();
+  }
+  const f = e.target.closest("[data-rinde-formulas]");
+  if (f) { rindeFormulas = !rindeFormulas; return pintarRinde(); }
+
+  const t = e.target.closest("[data-rinde-todas]");
+  if (t) {
+    if (rindeAbiertas.size) rindeAbiertas.clear();
+    else (rindeDatos || []).forEach(d => rindeAbiertas.add(d.casa));
+    return pintarRinde();
+  }
+});
 
 // ---------- pestaña depósitos de garantía ----------
 // Una garantía no es un gasto: es plata tuya que está en el
