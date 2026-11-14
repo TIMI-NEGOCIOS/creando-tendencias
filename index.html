@@ -177,6 +177,12 @@
     margin-top:14px;font-size:12.5px;color:var(--gris)}
   .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
   .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
+  /* el ×3 avisa que es alguien que ya se había alojado */
+  .volante-repite{display:inline-block;font-size:11px;color:var(--morado-hondo);
+    font-weight:500;margin-left:3px;font-variant-numeric:tabular-nums}
+  .volante-sello{display:inline-block;border:1px solid var(--linea);border-radius:7px;
+    padding:2px 8px;font-size:11.5px;color:var(--morado-hondo);background:var(--lila-velo);
+    white-space:nowrap;font-variant-numeric:tabular-nums}
   .cal-aviso{border:1px solid #E8C9A8;background:#FDF8F2;border-radius:14px;
     padding:14px 18px;margin-top:16px;font-size:13.5px;line-height:1.7;color:var(--gris)}
   .cal-aviso b{color:var(--tinta);font-weight:500}
@@ -649,7 +655,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v34 · calendario de reservas</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v36 · Airbnb por habitación</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -2532,8 +2538,24 @@ function resFecha(iso){
 let resMes     = new Date().toISOString().slice(0, 7);
 let resCasa    = null;      // null = todas
 let resAyuda   = false;
-let resDatos   = [];
-let resChoques = [];
+let resDatos    = [];
+let resChoques  = [];
+let resClientes = [];
+let resOcupadas = [];   // reservas que caen en el cuarto de un inquilino
+
+// El volante es de la PERSONA, no del pago ni de la reserva. El
+// mismo huésped que vuelve en marzo sigue siendo el mismo volante.
+const resCliente = id => resClientes.find(c => c.id === id) || null;
+
+// Cómo se nombra a quien reservó, en orden de preferencia:
+// su volante, el nombre suelto de la reserva, o el canal.
+function resQuien(r, conVolante = true){
+  const c = resCliente(r.cliente_id);
+  const nombre = (c && c.nombre !== "(sin nombre)" ? c.nombre : null)
+    || (r.huesped || "").trim() || null;
+  if (c && conVolante) return c.volante + (nombre ? " · " + nombre : "");
+  return nombre || resCanal(r.canal).rotulo;
+}
 
 // Fechas sin zona horaria: "2026-11-11" se trata como texto, no como
 // Date, porque new Date("2026-11-11") en Lima retrocede un dia.
@@ -2548,12 +2570,16 @@ const resSuma = (iso, n) => {
 const resCubre = (r, iso) => iso >= r.entrada && iso < r.salida;
 
 async function cargarReservas(){
-  const [r, c] = await Promise.all([
+  const [r, c, v, o] = await Promise.all([
     sb.from("v_reservas").select("*").order("entrada"),
-    sb.from("v_reservas_choque").select("*")
+    sb.from("v_reservas_choque").select("*"),
+    sb.from("v_clientes").select("*").order("numero"),
+    sb.from("v_reservas_ocupadas").select("*")
   ]);
-  resDatos   = r.data || [];
-  resChoques = c.data || [];
+  resDatos    = r.data || [];
+  resChoques  = c.data || [];
+  resClientes = v.data || [];
+  resOcupadas = o.data || [];
   // la primera vez, se abre en la casa que si tiene reservas
   if (resCasa === null && resDatos.length) {
     const casas = [...new Set(resDatos.filter(x => !x.anulado).map(x => x.propiedad))];
@@ -2610,8 +2636,8 @@ function resCalendario(){
       // de .dudosa, que es un background-image.
       cintas.push(`<div class="cal-cinta ${cl}${dudosa}" data-res="${r.id}"
         style="background-color:${resCanal(r.canal).color}"
-        title="${esc(r.huesped || resCanal(r.canal).rotulo)} · ${r.noches} ${r.noches===1?"noche":"noches"} · ${esc(r.entrada)} → ${esc(r.salida)}${r.monto_total==null?" · falta el monto":""}">
-        ${ini ? esc(r.huesped || resCanal(r.canal).rotulo) : ""}</div>`);
+        title="${esc(resQuien(r))} · ${r.noches} ${r.noches===1?"noche":"noches"} · ${esc(r.entrada)} → ${esc(r.salida)}${r.monto_total==null?" · falta el monto":""}">
+        ${ini ? esc(resQuien(r, false)) : ""}</div>`);
     }
     celdas.push(`<div class="cal-celda ${esta ? "" : "fuera"} ${iso === hoy ? "hoy" : ""}">
       <span class="cal-num">${Number(iso.slice(8, 10))}</span>
@@ -2635,14 +2661,20 @@ function resNochesDelMes(){
     const h = (r.salida  < fin ? r.salida  : fin);
     if (h > d) noches += Math.round((new Date(h) - new Date(d)) / 86400000);
   });
-  return {noches, diasMes: new Date(a, m, 0).getDate()};
+  // Cuántas habitaciones distintas se alquilaron este mes. Si no
+  // se divide entre ellas, dos cuartos llenos darían 200%.
+  const cuartos = new Set(resFiltradas()
+    .filter(r => r.entrada < fin && r.salida > ini)
+    .map(r => r.propiedad + "·" + (r.habitacion || "*"))).size || 1;
+  return {noches, diasMes: new Date(a, m, 0).getDate(), cuartos};
 }
 
 function pintarReservas(){
   const lista = resFiltradas();
   const delMes = lista.filter(r => r.entrada < resSuma(resMes + "-01", 32).slice(0,8) + "01"
     && r.salida > resMes + "-01");
-  const {noches, diasMes} = resNochesDelMes();
+  const {noches, diasMes, cuartos} = resNochesDelMes();
+  const ocupacion = Math.round(noches * 100 / (diasMes * cuartos));
   const cobrado = delMes.reduce((t, r) => t + Number(r.monto_pagado || 0), 0);
   const porCobrar = delMes.reduce((t, r) =>
     t + (r.monto_total == null ? 0 : Number(r.falta_cobrar || 0)), 0);
@@ -2654,7 +2686,7 @@ function pintarReservas(){
   $("cuerpo-alq").innerHTML = `
     <div class="cifras">
       <div class="cifra util"><span>NOCHES VENDIDAS</span><strong>${noches}</strong></div>
-      <div class="cifra"><span>OCUPACIÓN</span><strong>${Math.round(noches*100/diasMes)}%</strong></div>
+      <div class="cifra" title="${noches} noches vendidas de ${diasMes * cuartos} posibles · ${cuartos} ${cuartos === 1 ? "habitación" : "habitaciones"} × ${diasMes} días"><span>OCUPACIÓN</span><strong>${ocupacion}%</strong></div>
       <div class="cifra util"><span>COBRADO</span><strong>${S(cobrado)}</strong></div>
       <div class="cifra ${sinMonto ? "egre" : ""}">
         <span>${sinMonto ? "SIN MONTO" : "POR COBRAR"}</span>
@@ -2691,8 +2723,11 @@ function pintarReservas(){
             `<span style="color:${RES_CANAL[k].color}">${RES_CANAL[k].rotulo}</span>`).join(", ")}.
             No cambia nunca.</li>
           <li>Las cintas <b>rayadas</b> son reservas a las que todavía les falta el monto.</li>
-          <li><b>Ocupación</b> es noches vendidas entre los días del mes, contando el
-            departamento completo. Si alquilas cuarto por cuarto esto hay que cambiarlo.</li>
+          <li><b>Ocupación</b> es las noches vendidas entre las que podías vender: los días
+            del mes por cada habitación que alquilaste. Si una reserva no tiene habitación,
+            cuenta como el departamento entero.</li>
+          <li>Si una reserva cae en una habitación donde vive un inquilino, sale un aviso
+            debajo del calendario. No te lo bloqueo: a veces querrás guardarla igual.</li>
           <li><b>Cobrado</b> es lo que ya entró de estas reservas. No está en la utilidad
             hasta que uses el botón <i>Pasar a Ingresos</i> de cada fila.</li>
         </ul></div>` : ""}
@@ -2705,6 +2740,14 @@ function pintarReservas(){
         <span><i style="background-color:var(--gris-claro);background-image:repeating-linear-gradient(45deg,
           rgba(255,255,255,.5) 0 3px,transparent 3px 6px)"></i>le falta el monto</span>
       </div>
+
+      ${resOcupadas.length ? `<div class="cal-aviso">
+        <b>Ojo: hay reservas en habitaciones con inquilino.</b>
+        <ul style="margin:8px 0 0;padding-left:18px">${resOcupadas.map(o =>
+          `<li>${esc(o.propiedad)} · ${esc(o.donde)}, del ${resFecha(o.entrada)} al
+            ${resFecha(o.salida)}: ahí vive <b>${esc(o.vive_ahi)}</b>, con contrato hasta
+            el ${resFecha(o.contrato_fin)}</li>`).join("")}</ul>
+        </div>` : ""}
 
       ${resChoques.length ? `<div class="cal-aviso">
         <b>Ojo: hay reservas que se pisan.</b>
@@ -2720,11 +2763,25 @@ function pintarReservas(){
     <div class="tarjeta">
       <div class="cabecera-tarjeta"><h4>Las reservas de ${RES_MESES[mm-1]}</h4></div>
       <div class="tabla-scroll">${tabla(
-        ["Entrada","Salida","Noches","Dónde","Huésped","Canal","Pagado","Total","Por noche","Estado","En utilidad",""],
+        ["Entrada","Salida","Noches","Dónde","Volante","Huésped","Canal","Pagado","Total","Por noche","Estado","En utilidad",""],
         delMes.slice().sort((a,b) => a.entrada < b.entrada ? -1 : 1).map(r => ({celdas:[
           resFecha(r.entrada), resFecha(r.salida), r.noches,
           esc(r.propiedad) + " · " + esc(r.habitacion || "todo el depa"),
-          esc(r.huesped || "—"),
+          {html: (() => {
+            const c = resCliente(r.cliente_id);
+            return c
+              ? `<span class="volante-sello" title="${esc(c.nombre)}${
+                  c.telefono ? " · " + esc(c.telefono) : ""} · ${c.reservas} ${
+                  c.reservas === 1 ? "reserva" : "reservas"} en total">${esc(c.volante)}</span>${
+                  c.reservas > 1 ? ` <span class="volante-repite" title="Ya se había alojado antes">×${c.reservas}</span>` : ""}`
+              : `<span style="color:var(--gris-claro)">sin volante</span>`;
+          })(), titulo:""},
+          (() => {
+            const c = resCliente(r.cliente_id);
+            const n = (c && c.nombre !== "(sin nombre)" ? c.nombre : null)
+              || (r.huesped || "").trim();
+            return n ? esc(n) : `<span style="color:var(--gris-claro)">sin nombre</span>`;
+          })(),
           {html:`<span style="display:inline-flex;align-items:center;gap:7px">
             <i style="width:9px;height:9px;border-radius:3px;flex:none;
               background:${resCanal(r.canal).color}"></i>${resCanal(r.canal).rotulo}${
@@ -2741,7 +2798,7 @@ function pintarReservas(){
                  ${Number(r.monto_pagado) > 0 ? "" : "disabled"}>Pasar a Ingresos</button>`,
           {html:`<span class="acc"><button data-res-editar="${r.id}" title="Editar">${IC.lapiz}</button>
             ${botonAnular("reservas", r, "reserva")}</span>`, titulo:""}
-        ]})), [2,6,7,8])}</div>
+        ]})), [2,7,8,9])}</div>
       <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
     </div>`;
 }
@@ -2781,7 +2838,16 @@ function fichaReserva(id){
       <div><label>Entrada</label><input id="r-ent" type="date" value="${esc(r?.entrada || hoy)}"></div>
       <div><label>Salida</label><input id="r-sal" type="date"
         value="${esc(r?.salida || resSuma(hoy, 1))}"></div>
-      <div><label>Huésped</label><input id="r-hue" value="${esc(r?.huesped || "")}"></div>
+      <div><label>Volante del cliente</label><select id="r-cli">
+        <option value="">— cliente nuevo, dale un volante —</option>
+        ${resClientes.map(c => `<option value="${c.id}" ${r?.cliente_id === c.id ? "selected" : ""}
+          >${esc(c.volante)} · ${esc(c.nombre)}${c.reservas ? ` (${c.reservas})` : ""}</option>`).join("")}
+      </select></div>
+      <div><label>Nombre</label><input id="r-nom"
+        value="${esc(resCliente(r?.cliente_id)?.nombre === "(sin nombre)" ? ""
+                  : resCliente(r?.cliente_id)?.nombre || r?.huesped || "")}"></div>
+      <div><label>Teléfono</label><input id="r-tel"
+        value="${esc(resCliente(r?.cliente_id)?.telefono || "")}"></div>
       <div><label>Canal</label><select id="r-can">${Object.keys(RES_CANAL).map(k =>
         `<option value="${k}" ${String(r?.canal||"directo").toLowerCase() === k ? "selected" : ""}
           >${RES_CANAL[k].rotulo}</option>`).join("")}</select></div>
@@ -2796,13 +2862,16 @@ function fichaReserva(id){
     </div>
     <label>Nota</label><input id="r-nota" value="${esc(r?.nota || "")}">
     <p class="vacio" style="text-align:left;padding:8px 0 0">
-      La salida es el día que se va y no se cobra: entrada 11 y salida 14 son 3 noches.</p>`,
+      La salida es el día que se va y no se cobra: entrada 11 y salida 14 son 3 noches.<br>
+      Si es alguien que ya vino, elige su volante: no le des uno nuevo.</p>`,
     async () => {
+      const nombre = $("r-nom").value.trim() || null;
+      const tel    = $("r-tel").value.trim() || null;
       const fila = {
         propiedad: $("r-prop").value,
         habitacion: $("r-hab").value.trim() || null,
         entrada: $("r-ent").value, salida: $("r-sal").value,
-        huesped: $("r-hue").value.trim() || null,
+        huesped: nombre,
         canal: $("r-can").value,
         codigo: $("r-cod").value.trim() || null,
         personas: $("r-per").value ? Number($("r-per").value) : null,
@@ -2814,6 +2883,26 @@ function fichaReserva(id){
       if (fila.salida <= fila.entrada) return "La salida tiene que ser después de la entrada.";
       if (fila.monto_total != null && fila.monto_pagado > fila.monto_total)
         return "Lo pagado no puede ser mayor que el total.";
+
+      // El volante nace con la reserva. Si eligió uno que ya existe,
+      // se reusa: es la misma persona. Si no, se crea y la base le
+      // pone el número siguiente.
+      let cli = $("r-cli").value ? Number($("r-cli").value) : null;
+      if (cli) {
+        const viejo = resCliente(cli);
+        const parche = {};
+        if (nombre && viejo?.nombre === "(sin nombre)") parche.nombre = nombre;
+        if (tel && !viejo?.telefono) parche.telefono = tel;
+        if (Object.keys(parche).length) await sb.from("clientes").update(parche).eq("id", cli);
+      } else {
+        const {data: nuevo, error: ec} = await sb.from("clientes")
+          .insert({nombre, telefono: tel, canal: fila.canal}).select().single();
+        if (ec) return "No se pudo crear el cliente: " + ec.message;
+        cli = nuevo.id;
+        setTimeout(() => alert("Cliente nuevo: " + nuevo.volante + "."), 60);
+      }
+      fila.cliente_id = cli;
+
       const {error} = id
         ? await sb.from("reservas").update(fila).eq("id", id)
         : await sb.from("reservas").insert(fila);
@@ -2840,7 +2929,7 @@ async function reservaAIngresos(id){
 
   const {data, error} = await sb.from("ing_alquiler").insert({
     fecha: r.entrada, propiedad: r.propiedad, habitacion: r.habitacion || "",
-    inquilino: r.huesped || (r.codigo || resCanal(r.canal).rotulo),
+    inquilino: resQuien(r),
     concepto: "airbnb", monto: Number(r.monto_pagado), comision: 0,
     nota: `Reserva ${r.entrada} → ${r.salida} · ${r.noches} `
           + `${r.noches === 1 ? "noche" : "noches"} · ${resCanal(r.canal).rotulo}`
