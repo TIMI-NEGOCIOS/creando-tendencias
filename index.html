@@ -655,7 +655,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v36 · Airbnb por habitación</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v37 · huéspedes</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -2540,17 +2540,17 @@ let resCasa    = null;      // null = todas
 let resAyuda   = false;
 let resDatos    = [];
 let resChoques  = [];
-let resClientes = [];
+let resHuespedes = [];
 let resOcupadas = [];   // reservas que caen en el cuarto de un inquilino
 
 // El volante es de la PERSONA, no del pago ni de la reserva. El
 // mismo huésped que vuelve en marzo sigue siendo el mismo volante.
-const resCliente = id => resClientes.find(c => c.id === id) || null;
+const resCliente = id => resHuespedes.find(c => c.id === id) || null;
 
 // Cómo se nombra a quien reservó, en orden de preferencia:
 // su volante, el nombre suelto de la reserva, o el canal.
 function resQuien(r, conVolante = true){
-  const c = resCliente(r.cliente_id);
+  const c = resHuesped(r.huesped_id);
   const nombre = (c && c.nombre !== "(sin nombre)" ? c.nombre : null)
     || (r.huesped || "").trim() || null;
   if (c && conVolante) return c.volante + (nombre ? " · " + nombre : "");
@@ -2573,12 +2573,12 @@ async function cargarReservas(){
   const [r, c, v, o] = await Promise.all([
     sb.from("v_reservas").select("*").order("entrada"),
     sb.from("v_reservas_choque").select("*"),
-    sb.from("v_clientes").select("*").order("numero"),
+    sb.from("v_huespedes").select("*").order("numero"),
     sb.from("v_reservas_ocupadas").select("*")
   ]);
   resDatos    = r.data || [];
   resChoques  = c.data || [];
-  resClientes = v.data || [];
+  resHuespedes = v.data || [];
   resOcupadas = o.data || [];
   // la primera vez, se abre en la casa que si tiene reservas
   if (resCasa === null && resDatos.length) {
@@ -2768,7 +2768,7 @@ function pintarReservas(){
           resFecha(r.entrada), resFecha(r.salida), r.noches,
           esc(r.propiedad) + " · " + esc(r.habitacion || "todo el depa"),
           {html: (() => {
-            const c = resCliente(r.cliente_id);
+            const c = resHuesped(r.huesped_id);
             return c
               ? `<span class="volante-sello" title="${esc(c.nombre)}${
                   c.telefono ? " · " + esc(c.telefono) : ""} · ${c.reservas} ${
@@ -2777,7 +2777,7 @@ function pintarReservas(){
               : `<span style="color:var(--gris-claro)">sin volante</span>`;
           })(), titulo:""},
           (() => {
-            const c = resCliente(r.cliente_id);
+            const c = resHuesped(r.huesped_id);
             const n = (c && c.nombre !== "(sin nombre)" ? c.nombre : null)
               || (r.huesped || "").trim();
             return n ? esc(n) : `<span style="color:var(--gris-claro)">sin nombre</span>`;
@@ -2838,16 +2838,16 @@ function fichaReserva(id){
       <div><label>Entrada</label><input id="r-ent" type="date" value="${esc(r?.entrada || hoy)}"></div>
       <div><label>Salida</label><input id="r-sal" type="date"
         value="${esc(r?.salida || resSuma(hoy, 1))}"></div>
-      <div><label>Volante del cliente</label><select id="r-cli">
-        <option value="">— cliente nuevo, dale un volante —</option>
-        ${resClientes.map(c => `<option value="${c.id}" ${r?.cliente_id === c.id ? "selected" : ""}
+      <div><label>Volante del huésped</label><select id="r-cli">
+        <option value="">— huésped nuevo, dale un volante —</option>
+        ${resHuespedes.map(c => `<option value="${c.id}" ${r?.huesped_id === c.id ? "selected" : ""}
           >${esc(c.volante)} · ${esc(c.nombre)}${c.reservas ? ` (${c.reservas})` : ""}</option>`).join("")}
       </select></div>
       <div><label>Nombre</label><input id="r-nom"
-        value="${esc(resCliente(r?.cliente_id)?.nombre === "(sin nombre)" ? ""
-                  : resCliente(r?.cliente_id)?.nombre || r?.huesped || "")}"></div>
+        value="${esc(resHuesped(r?.huesped_id)?.nombre === "(sin nombre)" ? ""
+                  : resHuesped(r?.huesped_id)?.nombre || r?.huesped || "")}"></div>
       <div><label>Teléfono</label><input id="r-tel"
-        value="${esc(resCliente(r?.cliente_id)?.telefono || "")}"></div>
+        value="${esc(resHuesped(r?.huesped_id)?.telefono || "")}"></div>
       <div><label>Canal</label><select id="r-can">${Object.keys(RES_CANAL).map(k =>
         `<option value="${k}" ${String(r?.canal||"directo").toLowerCase() === k ? "selected" : ""}
           >${RES_CANAL[k].rotulo}</option>`).join("")}</select></div>
@@ -2889,19 +2889,19 @@ function fichaReserva(id){
       // pone el número siguiente.
       let cli = $("r-cli").value ? Number($("r-cli").value) : null;
       if (cli) {
-        const viejo = resCliente(cli);
+        const viejo = resHuesped(cli);
         const parche = {};
         if (nombre && viejo?.nombre === "(sin nombre)") parche.nombre = nombre;
         if (tel && !viejo?.telefono) parche.telefono = tel;
-        if (Object.keys(parche).length) await sb.from("clientes").update(parche).eq("id", cli);
+        if (Object.keys(parche).length) await sb.from("huespedes").update(parche).eq("id", cli);
       } else {
-        const {data: nuevo, error: ec} = await sb.from("clientes")
+        const {data: nuevo, error: ec} = await sb.from("huespedes")
           .insert({nombre, telefono: tel, canal: fila.canal}).select().single();
-        if (ec) return "No se pudo crear el cliente: " + ec.message;
+        if (ec) return "No se pudo crear el huésped: " + ec.message;
         cli = nuevo.id;
-        setTimeout(() => alert("Cliente nuevo: " + nuevo.volante + "."), 60);
+        setTimeout(() => alert("Huésped nuevo: " + nuevo.volante + "."), 60);
       }
-      fila.cliente_id = cli;
+      fila.huesped_id = cli;
 
       const {error} = id
         ? await sb.from("reservas").update(fila).eq("id", id)
