@@ -178,6 +178,12 @@
   .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
   .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
   /* el ×3 avisa que es alguien que ya se había alojado */
+  /* quien ya no vive ahi, y la habitacion que cambio de manos */
+  .sello-fue,.sello-relevo{display:inline-block;font-size:10.5px;letter-spacing:.04em;
+    text-transform:uppercase;padding:2px 7px;border-radius:7px;margin-left:6px;
+    white-space:nowrap;vertical-align:1px}
+  .sello-fue{color:var(--gris);background:#F2EFF4;border:1px solid var(--linea)}
+  .sello-relevo{color:#8A5A12;background:#FDF4E7;border:1px solid #E8C9A8}
   /* la fecha no se parte en dos lineas, y el dia de la semana
      queda en gris para que el ojo caiga en el numero */
   .fecha-corta{white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -659,7 +665,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v38 · fechas legibles</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v40 · una fila por persona</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -4439,13 +4445,21 @@ async function pintarPorHabitacion(){
         <div class="cabecera-tarjeta">
           <h4 style="color:${col}">${esc(casa)}</h4>
           <span class="chip" style="color:${col};background:${col}1A;border-color:${col}33">
-            <i></i>${filas.length} habitación(es)</span>
+            <i></i>${new Set(filas.map(f => f.habitacion)).size} habitación(es)</span>
         </div>
         <div class="tabla-scroll">${tabla(
           ["Hab.","Inquilino","Ingresos","Comisión","Neto","Pagos"],
           filas.map(f => [
             `<span class="chip" style="color:${col};background:${col}1A;border-color:${col}33"><i></i>${esc(f.habitacion)}</span>`,
-            esc(f.inquilino||"—"), S(f.ingresos), S(f.comision), S(f.neto), f.pagos]),
+            // Una habitación puede tener dos filas si cambió de
+            // inquilino a mitad de mes. Se marca, porque si no
+            // parece que la casa tiene más cuartos de los que tiene.
+            esc(f.inquilino || "—")
+              + (f.sigue_activo === false
+                  ? ` <span class="sello-fue" title="Ya no vive aquí">se fue</span>` : "")
+              + (f.es_relevo
+                  ? ` <span class="sello-relevo" title="Esta habitación cambió de inquilino este mes">relevo</span>` : ""),
+            S(f.ingresos), S(f.comision), S(f.neto), f.pagos]),
           [2,3,4,5])}</div>
         <div class="pie-tarjeta">
           <span class="exp-saldo"><span>ingresos de la casa</span>${S(ing)}</span>
