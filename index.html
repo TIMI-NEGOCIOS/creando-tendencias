@@ -2977,21 +2977,34 @@ function fichaReserva(id){
       // El volante nace con la reserva. Si eligió uno que ya existe,
       // se reusa: es la misma persona. Si no, se crea y la base le
       // pone el número siguiente.
-      let cli = $("r-cli").value ? Number($("r-cli").value) : null;
-      if (cli) {
-        const viejo = resHuesped(cli);
-        const parche = {};
-        if (nombre && viejo?.nombre === "(sin nombre)") parche.nombre = nombre;
-        if (tel && !viejo?.telefono) parche.telefono = tel;
-        if (Object.keys(parche).length) await sb.from("huespedes").update(parche).eq("id", cli);
-      } else {
-        const {data: nuevo, error: ec} = await sb.from("huespedes")
-          .insert({nombre, telefono: tel, canal: fila.canal}).select().single();
-        if (ec) return "No se pudo crear el huésped: " + ec.message;
-        cli = nuevo.id;
-        setTimeout(() => alert("Huésped nuevo: " + nuevo.volante + "."), 60);
+      //
+      // PERO los volantes son un extra. Si la base todavía no los
+      // tiene, o si fallan por lo que sea, la reserva se guarda
+      // igual. Un cambio de monto no se puede quedar sin guardar
+      // por culpa de una función que ni siquiera está instalada.
+      if (resVolantesListos()) {
+        let cli = $("r-cli").value ? Number($("r-cli").value) : null;
+        try {
+          if (cli) {
+            const viejo = resHuesped(cli);
+            const parche = {};
+            if (nombre && viejo?.nombre === "(sin nombre)") parche.nombre = nombre;
+            if (tel && !viejo?.telefono) parche.telefono = tel;
+            if (Object.keys(parche).length)
+              await sb.from("huespedes").update(parche).eq("id", cli);
+          } else {
+            const {data: nuevo, error: ec} = await sb.from("huespedes")
+              .insert({nombre, telefono: tel, canal: fila.canal}).select().single();
+            if (ec) throw new Error(ec.message);
+            cli = nuevo.id;
+            setTimeout(() => alert("Huésped nuevo: " + nuevo.volante + "."), 60);
+          }
+          if (cli) fila.huesped_id = cli;
+        } catch (e) {
+          console.warn("El volante no se pudo poner, la reserva se guarda igual:", e);
+          avisoSuelto("La reserva se guardó, pero no se le pudo poner volante: " + e.message);
+        }
       }
-      fila.huesped_id = cli;
 
       const {error} = id
         ? await sb.from("reservas").update(fila).eq("id", id)
