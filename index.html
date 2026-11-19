@@ -178,6 +178,12 @@
   .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
   .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
   /* el ×3 avisa que es alguien que ya se había alojado */
+  /* aviso que no bloquea: aparece abajo y se va solo */
+  .aviso-suelto{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    z-index:90;max-width:min(520px,calc(100vw - 32px));background:var(--tinta);color:#fff;
+    border-radius:13px;padding:13px 19px;font-size:13.5px;line-height:1.5;
+    box-shadow:0 10px 30px rgba(43,36,48,.28);transition:opacity .5s,transform .5s}
+  .aviso-suelto.yendose{opacity:0;transform:translateX(-50%) translateY(8px)}
   /* quien ya no vive ahi, y la habitacion que cambio de manos */
   .sello-fue,.sello-relevo{display:inline-block;font-size:10.5px;letter-spacing:.04em;
     text-transform:uppercase;padding:2px 7px;border-radius:7px;margin-left:6px;
@@ -665,7 +671,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v40 · una fila por persona</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v42 · el botón siempre responde</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -2617,6 +2623,20 @@ let resHuespedes = [];
 let resOcupadas = [];   // reservas que caen en el cuarto de un inquilino
 let resSinVista = [];   // vistas que la base todavía no tiene
 
+// ¿Está instalada la parte de volantes? Si no, la pestaña sigue
+// funcionando entera; solo no hay códigos de huésped.
+const resVolantesListos = () => !resSinVista.some(f => f.vista === "v_huespedes");
+
+// Un aviso que no bloquea nada y se va solo.
+function avisoSuelto(texto){
+  const d = document.createElement("div");
+  d.className = "aviso-suelto";
+  d.textContent = texto;
+  document.body.appendChild(d);
+  setTimeout(() => d.classList.add("yendose"), 4200);
+  setTimeout(() => d.remove(), 4800);
+}
+
 // El volante es de la PERSONA, no del pago ni de la reserva. El
 // mismo huésped que vuelve en marzo sigue siendo el mismo volante.
 const resHuesped = id => resHuespedes.find(c => c.id === id) || null;
@@ -2928,11 +2948,11 @@ function fichaReserva(id){
       <div><label>Entrada</label><input id="r-ent" type="date" value="${esc(r?.entrada || hoy)}"></div>
       <div><label>Salida</label><input id="r-sal" type="date"
         value="${esc(r?.salida || resSuma(hoy, 1))}"></div>
-      <div><label>Volante del huésped</label><select id="r-cli">
+      ${resVolantesListos() ? `<div><label>Volante del huésped</label><select id="r-cli">
         <option value="">— huésped nuevo, dale un volante —</option>
         ${resHuespedes.map(c => `<option value="${c.id}" ${r?.huesped_id === c.id ? "selected" : ""}
           >${esc(c.volante)} · ${esc(c.nombre)}${c.reservas ? ` (${c.reservas})` : ""}</option>`).join("")}
-      </select></div>
+      </select></div>` : ""}
       <div><label>Nombre</label><input id="r-nom"
         value="${esc(resHuesped(r?.huesped_id)?.nombre === "(sin nombre)" ? ""
                   : resHuesped(r?.huesped_id)?.nombre || r?.huesped || "")}"></div>
@@ -2953,7 +2973,10 @@ function fichaReserva(id){
     <label>Nota</label><input id="r-nota" value="${esc(r?.nota || "")}">
     <p class="vacio" style="text-align:left;padding:8px 0 0">
       La salida es el día que se va y no se cobra: entrada 11 y salida 14 son 3 noches.<br>
-      Si es alguien que ya vino, elige su volante: no le des uno nuevo.</p>`,
+      ${resVolantesListos()
+        ? "Si es alguien que ya vino, elige su volante: no le des uno nuevo."
+        : "Los volantes no están instalados todavía: corre <b>huespedes.sql</b> en Supabase y "
+          + "esta ficha empezará a pedirte el código del huésped."}</p>`,
     async () => {
       const nombre = $("r-nom").value.trim() || null;
       const tel    = $("r-tel").value.trim() || null;
@@ -3006,9 +3029,19 @@ function fichaReserva(id){
         }
       }
 
-      const {error} = id
-        ? await sb.from("reservas").update(fila).eq("id", id)
-        : await sb.from("reservas").insert(fila);
+      const escribir = (f) => id
+        ? sb.from("reservas").update(f).eq("id", id)
+        : sb.from("reservas").insert(f);
+
+      let {error} = await escribir(fila);
+
+      // Si la base todavía no tiene la columna del volante, se
+      // guarda sin ella. La reserva vale más que el volante.
+      if (error && /huesped_id/i.test(error.message || "")) {
+        const {huesped_id, ...sinVolante} = fila;
+        ({error} = await escribir(sinVolante));
+        if (!error) avisoSuelto("Se guardó, pero sin volante: corre huespedes.sql en Supabase.");
+      }
       return error ? "No se guardó: " + error.message : null;
     },
     id ? async () => {
@@ -4108,16 +4141,36 @@ function abrirFicha(titulo, campos, alGuardar, alBorrar){
     </div>`;
   $("velo").classList.add("abierto");
   $("ficha-cancelar").onclick = cerrarFicha;
+  // El try/finally es lo que importa: si alGuardar revienta, el
+  // botón TIENE que volver a habilitarse y el error TIENE que
+  // verse. Sin esto queda gris y mudo, y no hay forma de saber
+  // qué pasó sin abrir la consola.
   $("ficha-guardar").onclick = async () => {
     $("ficha-guardar").disabled = true;
-    const err = await alGuardar();
-    $("ficha-guardar").disabled = false;
+    let err = null;
+    try {
+      err = await alGuardar();
+    } catch (e) {
+      console.error("Al guardar:", e);
+      err = "Se rompió al guardar: " + (e && (e.message || e));
+    } finally {
+      $("ficha-guardar").disabled = false;
+    }
     if (err) { $("ficha-aviso").textContent = err; return; }
     cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
   if (alBorrar) $("ficha-borrar").onclick = async () => {
     if (!confirm("¿Anular este registro? Deja de contar en los totales, pero no se borra: lo puedes restaurar cuando quieras.")) return;
-    const err = await alBorrar();
+    $("ficha-borrar").disabled = true;
+    let err = null;
+    try {
+      err = await alBorrar();
+    } catch (e) {
+      console.error("Al anular:", e);
+      err = "Se rompió al anular: " + (e && (e.message || e));
+    } finally {
+      $("ficha-borrar").disabled = false;
+    }
     if (err) { $("ficha-aviso").textContent = err; return; }
     cerrarFicha(); (enAdmin() ? abrirAdmin : pestAlqVivo() ? refrescarAlq : refrescar)();
   };
