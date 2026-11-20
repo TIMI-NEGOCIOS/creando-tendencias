@@ -178,6 +178,29 @@
   .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
   .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
   /* el ×3 avisa que es alguien que ya se había alojado */
+  /* el clip del comprobante · apagado si no hay nada adjunto */
+  .clip{width:30px;height:28px;border:1px solid transparent;border-radius:9px;
+    color:var(--gris-claro);background:transparent;display:inline-flex;align-items:center;
+    justify-content:center;gap:2px;transition:.18s;position:relative;padding:0}
+  .clip svg{width:16px;height:16px}
+  .clip:hover{color:var(--morado-hondo);border-color:var(--lila);background:var(--lila-velo)}
+  .clip.con{color:var(--morado-hondo);background:var(--lila-velo);border-color:var(--lila)}
+  .clip b{font-size:10.5px;font-weight:500;line-height:1}
+  .comp-rejilla{display:grid;gap:12px;margin-top:4px;
+    grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  .comp-foto{margin:0;border:1px solid var(--linea);border-radius:13px;overflow:hidden;
+    background:#FBFAFC}
+  .comp-foto img{width:100%;height:150px;object-fit:cover;display:block;cursor:zoom-in}
+  .comp-pdf{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:150px;color:var(--morado-hondo);font-size:15px;text-align:center;line-height:1.5}
+  /* el pie no puede empujar al boton fuera de la tarjeta: la
+     fecha se encoge, el boton nunca */
+  .comp-foto figcaption{font-size:11px;color:var(--gris);padding:6px 8px;
+    border-top:1px solid var(--linea);display:flex;align-items:center;
+    justify-content:space-between;gap:5px;min-width:0}
+  .comp-foto figcaption > span{min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .comp-quitar{padding:2px 7px;font-size:10.5px;border-radius:7px;flex:none}
   /* aviso que no bloquea: aparece abajo y se va solo */
   .aviso-suelto{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
     z-index:90;max-width:min(520px,calc(100vw - 32px));background:var(--tinta);color:#fff;
@@ -194,6 +217,7 @@
      queda en gris para que el ojo caiga en el numero */
   .fecha-corta{white-space:nowrap;font-variant-numeric:tabular-nums}
   .fecha-corta i{font-style:normal;color:var(--gris-claro);margin-right:2px}
+  .volante-pila{font-size:12px;color:var(--tinta);margin-left:5px;white-space:nowrap}
   .volante-repite{display:inline-block;font-size:11px;color:var(--morado-hondo);
     font-weight:500;margin-left:3px;font-variant-numeric:tabular-nums}
   .volante-sello{display:inline-block;border:1px solid var(--linea);border-radius:7px;
@@ -671,7 +695,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v42 · el botón siempre responde</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v44 · volante con nombre</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1284,7 +1308,8 @@ async function pintarIngresos(){
                         r.pago_matias  ?? r.comision/2, generaComision(r.concepto))
           ] : []),
           esc(r.metodo_pago||"—"), esc(r.nota||"") + selloAnulado(r),
-          `<span class="acc"><button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
+          `<span class="acc">${clipComprobante("ingreso", r.id)}
+           <button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
            ${botonAnular("ing_alquiler", r, "pago")}</span>`]})),
         verSocios ? [5,6,7,8] : [5,6])}</div>
       <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
@@ -1411,7 +1436,8 @@ async function pintarEgresos(){
              <span>${S(r.monto)}</span>
            </span>`,
           esc(r.responsable||""), esc(r.descripcion||"") + selloAnulado(r),
-          `<span class="acc"><button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
+          `<span class="acc">${clipComprobante("egreso", r.id)}
+           <button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
            ${botonAnular("egr_alquiler", r, "gasto")}</span>`]})),
         [3])}</div>
       <div class="pie-tarjeta">${botonVerAnulados(anuladosEgr)}</div>
@@ -1989,6 +2015,7 @@ window.borrarConexion = async (id) => {
 // MÓDULO: ALQUILERES E INQUILINOS
 // ===============================================================
 const IC = {
+  clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5 11.8 19.7a4.6 4.6 0 0 1-6.5-6.5l8.6-8.6a3 3 0 0 1 4.3 4.3l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg>',
   lapiz:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>',
   vuelta:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 5 5v3"/></svg>',
@@ -2042,6 +2069,8 @@ async function cargarAlq(){
     sb.rpc("calendario_mes", {p_mes: mesCalendario + "-01"})
   ]);
   datos = {props:p.data||[], inq:i.data||[], pagos:g.data||[], cx:c.data||[], rec:r.data||[], pagosProp:pp.data||[], avisos:cal.data||[]};
+  // el conteo de comprobantes: una consulta chica, sin imágenes
+  await cargarComprobantes();
 }
 
 // Una pestaña que revienta NO se puede quedar en el esqueleto
@@ -2879,12 +2908,17 @@ function pintarReservas(){
           esc(r.propiedad) + " · " + esc(r.habitacion || "todo el depa"),
           {html: (() => {
             const c = resHuesped(r.huesped_id);
-            return c
-              ? `<span class="volante-sello" title="${esc(c.nombre)}${
-                  c.telefono ? " · " + esc(c.telefono) : ""} · ${c.reservas} ${
-                  c.reservas === 1 ? "reserva" : "reservas"} en total">${esc(c.volante)}</span>${
-                  c.reservas > 1 ? ` <span class="volante-repite" title="Ya se había alojado antes">×${c.reservas}</span>` : ""}`
-              : `<span style="color:var(--gris-claro)">sin volante</span>`;
+            if (!c) return `<span style="color:var(--gris-claro)">sin volante</span>`;
+            // el primer nombre al lado del número: es así como la
+            // reconoces de un vistazo, sin leer el apellido entero
+            const pila = (c.nombre && c.nombre !== "(sin nombre)" ? c.nombre
+                          : (r.huesped || "")).trim();
+            const pila1 = pila ? pila.split(/\s+/)[0] : "";
+            return `<span class="volante-sello" title="${esc(c.nombre)}${
+                c.telefono ? " · " + esc(c.telefono) : ""} · ${c.reservas} ${
+                c.reservas === 1 ? "reserva" : "reservas"} en total">${esc(c.volante)}</span>${
+                pila1 ? ` <span class="volante-pila">${esc(pila1)}</span>` : ""}${
+                c.reservas > 1 ? ` <span class="volante-repite" title="Ya se había alojado antes">×${c.reservas}</span>` : ""}`;
           })(), titulo:""},
           (() => {
             const c = resHuesped(r.huesped_id);
@@ -2949,7 +2983,8 @@ function fichaReserva(id){
       <div><label>Salida</label><input id="r-sal" type="date"
         value="${esc(r?.salida || resSuma(hoy, 1))}"></div>
       ${resVolantesListos() ? `<div><label>Volante del huésped</label><select id="r-cli">
-        <option value="">— huésped nuevo, dale un volante —</option>
+        <option value="" ${r && !r.huesped_id ? "selected" : ""}>— sin volante por ahora —</option>
+        <option value="nuevo" ${r ? "" : "selected"}>— crear uno nuevo —</option>
         ${resHuespedes.map(c => `<option value="${c.id}" ${r?.huesped_id === c.id ? "selected" : ""}
           >${esc(c.volante)} · ${esc(c.nombre)}${c.reservas ? ` (${c.reservas})` : ""}</option>`).join("")}
       </select></div>` : ""}
@@ -2961,8 +2996,8 @@ function fichaReserva(id){
       <div><label>Canal</label><select id="r-can">${Object.keys(RES_CANAL).map(k =>
         `<option value="${k}" ${String(r?.canal||"directo").toLowerCase() === k ? "selected" : ""}
           >${RES_CANAL[k].rotulo}</option>`).join("")}</select></div>
-      <div><label>Código o volante</label><input id="r-cod" value="${esc(r?.codigo || "")}"
-        placeholder="Volante 002"></div>
+      <div><label>Código del canal</label><input id="r-cod" value="${esc(r?.codigo || "")}"
+        placeholder="el que da Airbnb, p.ej. HMABC123"></div>
       <div><label>Personas</label><input id="r-per" type="number" min="1"
         value="${r?.personas ?? ""}"></div>
       <div><label>Total de la estadía</label><input id="r-tot" type="number" step="0.01"
@@ -3005,8 +3040,13 @@ function fichaReserva(id){
       // tiene, o si fallan por lo que sea, la reserva se guarda
       // igual. Un cambio de monto no se puede quedar sin guardar
       // por culpa de una función que ni siquiera está instalada.
-      if (resVolantesListos()) {
-        let cli = $("r-cli").value ? Number($("r-cli").value) : null;
+      // "" = déjala sin volante · "nuevo" = créame uno ·
+      // un número = es este huésped, el que ya vino antes.
+      const elegido = resVolantesListos() ? $("r-cli").value : "";
+      // si estaba enganchada y eliges "sin volante", se desengancha
+      if (elegido === "" && id && r?.huesped_id) fila.huesped_id = null;
+      if (elegido !== "") {
+        let cli = elegido === "nuevo" ? null : Number(elegido);
         try {
           if (cli) {
             const viejo = resHuesped(cli);
@@ -3118,6 +3158,7 @@ function srvConcepto(){
 }
 
 async function cargarServicios(){
+  await cargarComprobantes();
   const {data} = await sb.from("egr_alquiler")
     .select("id, fecha, propiedad, monto, categoria, categoria_texto, descripcion, responsable, anulado, anulado_en")
     .order("fecha");
@@ -3414,7 +3455,8 @@ function pintarServicios(){
           S(r.monto),
           esc(r.responsable || ""),
           esc(r.descripcion || "") + selloAnulado(r),
-          `<span class="acc"><button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
+          `<span class="acc">${clipComprobante("egreso", r.id)}
+           <button onclick="editarEgreso(${r.id})" title="Editar">${IC.lapiz}</button>
            ${botonAnular("egr_alquiler", r, "pago de " + def.rotulo.toLowerCase())}</span>`
         ]})), [3])}</div>
       <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
@@ -3513,6 +3555,168 @@ document.addEventListener("click", async (e) => {
   $("s-monto").value = ""; $("s-desc").value = "";
   await cargarServicios();
   pintarServicios();
+});
+
+// ---------- comprobantes · la foto del voucher ----------
+//
+// Tres reglas, y de ellas depende que la página no se vuelva
+// lenta:
+//
+//   1. las listas NUNCA piden imágenes, solo el conteo
+//   2. la imagen se convierte a webp ANTES de subirla
+//   3. la imagen se descarga solo cuando le das clic
+//
+// Si alguna vez se rompe alguna de las tres, la pestaña de Pagos
+// va a empezar a tardar y no vas a saber por qué.
+
+let compConteo = {};          // "ingreso:12" → 2
+const compClave = (ambito, id) => ambito + ":" + id;
+const compCuantos = (ambito, id) => compConteo[compClave(ambito, id)] || 0;
+
+async function cargarComprobantes(){
+  const {data, error} = await sb.from("v_comprobantes_conteo").select("*");
+  if (error) { compConteo = {}; compSinTabla = true; return; }
+  compSinTabla = false;
+  compConteo = Object.fromEntries((data || []).map(c => [compClave(c.ambito, c.fila_id), c.cuantos]));
+}
+let compSinTabla = false;
+
+// El clip que va en cada fila. Sin número cuando no hay nada,
+// para que no llene la tabla de ceros.
+function clipComprobante(ambito, id){
+  if (compSinTabla) return "";
+  const n = compCuantos(ambito, id);
+  return `<button class="clip ${n ? "con" : ""}" data-comp="${ambito}:${id}"
+    title="${n ? n + (n === 1 ? " comprobante" : " comprobantes") : "Adjuntar comprobante"}">
+    ${IC.clip}${n > 1 ? `<b>${n}</b>` : ""}</button>`;
+}
+
+// Convierte a webp y achica. Esto es lo que hace que una captura
+// de celular de 2 MB termine pesando 30 KB.
+//
+// El PDF pasa tal cual: no es una imagen y no se puede dibujar
+// en un lienzo.
+async function compComprimir(file){
+  const MAX = 1600, CALIDAD = 0.72;
+  if (file.type === "application/pdf")
+    return {blob: file, tipo: file.type, ancho: null, alto: null, orig: file.size};
+
+  // si el navegador no sabe hacer webp, se sube tal cual
+  const prueba = document.createElement("canvas");
+  const haceWebp = prueba.toDataURL("image/webp").startsWith("data:image/webp");
+
+  let img;
+  try { img = await createImageBitmap(file); }
+  catch { return {blob: file, tipo: file.type, ancho: null, alto: null, orig: file.size}; }
+
+  const esc = Math.min(1, MAX / Math.max(img.width, img.height));
+  const w = Math.round(img.width * esc), h = Math.round(img.height * esc);
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, w, h);
+  img.close?.();
+
+  const tipo = haceWebp ? "image/webp" : "image/jpeg";
+  const blob = await new Promise(r => c.toBlob(r, tipo, CALIDAD));
+  // si por lo que sea salió más pesado, gana el original
+  if (!blob || blob.size >= file.size)
+    return {blob: file, tipo: file.type, ancho: img.width, alto: img.height, orig: file.size};
+  return {blob, tipo, ancho: w, alto: h, orig: file.size};
+}
+
+async function compSubir(ambito, filaId, file){
+  const r = await compComprimir(file);
+  const ext = r.tipo === "image/webp" ? "webp"
+            : r.tipo === "application/pdf" ? "pdf"
+            : (file.name.split(".").pop() || "jpg").toLowerCase();
+  const ruta = `${ambito}/${filaId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const {error: eu} = await sb.storage.from("comprobantes")
+    .upload(ruta, r.blob, {contentType: r.tipo, upsert: false});
+  if (eu) throw new Error(eu.message);
+
+  const {data: ses} = await sb.auth.getUser();
+  const {error: ei} = await sb.from("comprobantes").insert({
+    ambito, fila_id: filaId, ruta, nombre: file.name, tipo: r.tipo,
+    bytes: r.blob.size, bytes_orig: r.orig, ancho: r.ancho, alto: r.alto,
+    subido_por: ses?.user?.id || null
+  });
+  if (ei) throw new Error(ei.message);
+  return r;
+}
+
+// Los enlaces firmados duran una hora. No se guardan en ningún
+// lado: se piden cuando abres la ventana y se vencen solos.
+async function compEnlaces(lista){
+  if (!lista.length) return [];
+  const {data} = await sb.storage.from("comprobantes")
+    .createSignedUrls(lista.map(c => c.ruta), 3600);
+  const mapa = Object.fromEntries((data || []).map(d => [d.path, d.signedUrl]));
+  return lista.map(c => ({...c, url: mapa[c.ruta] || null}));
+}
+
+async function fichaComprobantes(ambito, filaId){
+  const {data} = await sb.from("comprobantes").select("*")
+    .eq("ambito", ambito).eq("fila_id", filaId).eq("anulado", false)
+    .order("creado_en");
+  const fotos = await compEnlaces(data || []);
+  const ahorro = fotos.reduce((t, f) => t + Math.max(0, (f.bytes_orig || 0) - (f.bytes || 0)), 0);
+
+  abrirFicha(`Comprobantes de este ${ambito}`, `
+    <div id="comp-lista">${fotos.length ? `
+      <div class="comp-rejilla">${fotos.map(f => `
+        <figure class="comp-foto">
+          ${f.tipo === "application/pdf"
+            ? `<a href="${f.url}" target="_blank" rel="noopener" class="comp-pdf">PDF<br><small>abrir</small></a>`
+            : `<a href="${f.url}" target="_blank" rel="noopener">
+                 <img src="${f.url}" alt="${esc(f.nombre || "comprobante")}" loading="lazy"></a>`}
+          <figcaption><span>${F(String(f.creado_en).slice(0,10))} ·
+            ${Math.round((f.bytes||0)/1024)} KB</span>
+            <button class="llano comp-quitar" data-comp-quitar="${f.id}"
+              title="Quitar este comprobante">quitar</button></figcaption>
+        </figure>`).join("")}</div>
+      ${ahorro > 0 ? `<p class="vacio" style="text-align:left;padding:10px 0 0">
+        Se ahorraron ${Math.round(ahorro/1024)} KB al convertirlos a webp.</p>` : ""}`
+      : `<p class="vacio">Todavía no hay ningún comprobante aquí.</p>`}</div>
+
+    <label style="margin-top:14px;display:block">Añadir una foto o un PDF</label>
+    <input type="file" id="comp-archivo" accept="image/*,application/pdf" multiple>
+    <p class="vacio" style="text-align:left;padding:8px 0 0" id="comp-estado">
+      Se convierte a webp y se achica a 1600 px antes de subir. Un voucher
+      suele quedar en 30 KB.</p>`,
+    async () => {
+      const files = [...($("comp-archivo").files || [])];
+      if (!files.length) return null;              // guardar sin elegir nada: no pasa nada
+      let hechos = 0, antes = 0, despues = 0;
+      for (const f of files) {
+        $("comp-estado").textContent = `Subiendo ${hechos + 1} de ${files.length}…`;
+        const r = await compSubir(ambito, filaId, f);
+        antes += r.orig; despues += r.blob.size; hechos++;
+      }
+      avisoSuelto(`${hechos} ${hechos === 1 ? "comprobante subido" : "comprobantes subidos"}`
+        + (antes > despues ? ` · ${Math.round(antes/1024)} KB → ${Math.round(despues/1024)} KB` : ""));
+      await cargarComprobantes();
+      return null;
+    });
+}
+
+document.addEventListener("click", async (e) => {
+  const c = e.target.closest("[data-comp]");
+  if (c) {
+    const [ambito, id] = c.dataset.comp.split(":");
+    return fichaComprobantes(ambito, Number(id));
+  }
+  const q = e.target.closest("[data-comp-quitar]");
+  if (q) {
+    if (!confirm("¿Quitar este comprobante? El movimiento no se toca.")) return;
+    await sb.from("comprobantes").update({anulado: true, anulado_en: new Date().toISOString()})
+      .eq("id", Number(q.dataset.compQuitar));
+    await cargarComprobantes();
+    cerrarFicha();
+    (pestAlqVivo() ? refrescarAlq : refrescar)();
+  }
 });
 
 // ---------- pestaña inquilinos ----------
