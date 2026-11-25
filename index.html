@@ -178,6 +178,41 @@
   .cal-leyenda span{display:inline-flex;align-items:center;gap:7px}
   .cal-leyenda i{width:11px;height:11px;border-radius:3px;flex:none}
   /* el ×3 avisa que es alguien que ya se había alojado */
+  /* ---------- MOBILIARIO ---------- */
+  .mob-tabla .mob-cab{cursor:pointer;transition:.15s}
+  .mob-tabla .mob-cab:hover{background:var(--lila-velo)}
+  .mob-tabla .mob-cab.abierta{background:var(--lila-velo)}
+  .mob-flecha{display:inline-block;width:13px;color:var(--gris-claro);font-size:11px}
+  .mob-icono{display:inline-block;width:19px;color:var(--morado-hondo);font-size:13px}
+  .mob-tabla .mob-detalle > td{padding:0;background:#FBFAFC}
+  .mob-caja{padding:14px 18px 16px 42px}
+  /* el mes como separador, con una linea que llega hasta el total */
+  .mob-mes{display:flex;align-items:center;gap:11px;margin:14px 0 7px;
+    font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--gris)}
+  .mob-mes:first-child{margin-top:0}
+  .mob-mes i{flex:1;height:1px;background:var(--linea)}
+  .mob-mes b{color:var(--morado-hondo);font-weight:500;letter-spacing:0;
+    font-size:13px;text-transform:none;font-variant-numeric:tabular-nums}
+  .mob-gasto{display:grid;gap:12px;align-items:baseline;padding:5px 0;font-size:13.5px;
+    grid-template-columns:96px 128px 1fr auto}
+  .mob-gasto .mob-c{color:var(--morado-hondo);font-size:12.5px}
+  .mob-gasto .mob-d{color:var(--gris);min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .mob-gasto .mob-m{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mob-suma{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    margin-top:14px;padding-top:11px;border-top:1px solid var(--linea);
+    font-size:13px;color:var(--gris)}
+  .mob-suma b{color:var(--tinta);font-weight:500}
+  .mob-tabla .mob-total td{border-top:1px solid var(--linea);color:var(--gris);
+    font-size:13px;padding-top:11px}
+  .mob-tabla small{color:var(--gris-claro);font-size:11px}
+  .mob-asignar{font-size:13px;padding:7px 10px}
+  @media(max-width:640px){
+    .mob-caja{padding:12px 14px}
+    .mob-gasto{grid-template-columns:1fr auto;gap:4px 10px}
+    .mob-gasto .mob-c{grid-column:1}
+    .mob-gasto .mob-d{grid-column:1/-1;white-space:normal}
+  }
   /* el clip del comprobante · apagado si no hay nada adjunto */
   .clip{width:30px;height:28px;border:1px solid transparent;border-radius:9px;
     color:var(--gris-claro);background:transparent;display:inline-flex;align-items:center;
@@ -695,7 +730,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v44 · volante con nombre</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v47 · mobiliario</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1004,6 +1039,7 @@ function modEgresos(){
       <button class="pestana" data-p="ingresos">Ingresos</button>
       <button class="pestana" data-p="habitacion">Ingresos por habitación</button>
       <button class="pestana" data-p="egresos">Egresos</button>
+      <button class="pestana" data-p="mobiliario">Mobiliario</button>
       <button class="pestana" data-p="deudas">Deudas</button>
       <button class="pestana" data-p="resumen">Resumen</button>
     </div>
@@ -1124,6 +1160,11 @@ async function refrescar(){
       ? huesoFormulario(4) + huesoTarjeta(190, 6, 7)
       : huesoTarjeta(170, 6, 6) + huesoTarjeta(150, 4, 4));
 
+  // Mobiliario no se filtra por mes: se ve todo lo que ha
+  // gastado cada mueble desde que se compró. El selector de mes
+  // de arriba no aplica, así que se esconde.
+  $("mes").closest(".filtro").classList.toggle("oculto", pestanaActual === "mobiliario");
+
   await cargarMaestros();
   await pintarCifras();
   esqueletoListo("cifras");
@@ -1132,6 +1173,7 @@ async function refrescar(){
   else if (pestanaActual === "ingresos") pintarIngresos();
   else if (pestanaActual === "habitacion") pintarPorHabitacion();
   else if (pestanaActual === "egresos") pintarEgresos();
+  else if (pestanaActual === "mobiliario") await pintarMobiliario();
   else if (pestanaActual === "deudas") pintarDeudas();
   else pintarResumen();
   esqueletoListo("contenido");
@@ -3009,7 +3051,8 @@ function fichaReserva(id){
     <p class="vacio" style="text-align:left;padding:8px 0 0">
       La salida es el día que se va y no se cobra: entrada 11 y salida 14 son 3 noches.<br>
       ${resVolantesListos()
-        ? "Si es alguien que ya vino, elige su volante: no le des uno nuevo."
+        ? "Si es alguien que ya vino, elige su volante: no le des uno nuevo. "
+          + "Si todavía no le diste ninguno en WhatsApp, déjalo en <b>sin volante</b>."
         : "Los volantes no están instalados todavía: corre <b>huespedes.sql</b> en Supabase y "
           + "esta ficha empezará a pedirte el código del huésped."}</p>`,
     async () => {
@@ -3060,7 +3103,9 @@ function fichaReserva(id){
               .insert({nombre, telefono: tel, canal: fila.canal}).select().single();
             if (ec) throw new Error(ec.message);
             cli = nuevo.id;
-            setTimeout(() => alert("Huésped nuevo: " + nuevo.volante + "."), 60);
+            setTimeout(() => alert("Huésped nuevo: " + nuevo.volante + "."
+              + "\n\nSi en WhatsApp le diste otro número, avísame y lo cambio:"
+              + " el padrón tiene que ser igual al tuyo."), 60);
           }
           if (cli) fila.huesped_id = cli;
         } catch (e) {
@@ -3076,11 +3121,25 @@ function fichaReserva(id){
       let {error} = await escribir(fila);
 
       // Si la base todavía no tiene la columna del volante, se
-      // guarda sin ella. La reserva vale más que el volante.
+      // guarda sin ella: la reserva vale más que el volante.
+      //
+      // Pero NO en silencio. Antes esto salía como un aviso que
+      // se iba solo, y desde afuera parecía que el botón no
+      // hacía nada: la reserva se guardaba y el volante se caía
+      // sin dejar rastro. Ahora se queda escrito en la ficha.
       if (error && /huesped_id/i.test(error.message || "")) {
         const {huesped_id, ...sinVolante} = fila;
-        ({error} = await escribir(sinVolante));
-        if (!error) avisoSuelto("Se guardó, pero sin volante: corre huespedes.sql en Supabase.");
+        const r2 = await escribir(sinVolante);
+        if (!r2.error) {
+          cerrarFicha();
+          (pestAlqVivo() ? refrescarAlq : refrescar)();
+          alert("La reserva se guardó, PERO el volante no.\n\n"
+            + "Tu base no tiene la columna reservas.huesped_id, así que no hay "
+            + "dónde guardarlo.\n\nCorre huespedes.sql en Supabase y vuelve a "
+            + "elegir el volante: ahí sí se queda.");
+          return null;
+        }
+        error = r2.error;
       }
       return error ? "No se guardó: " + error.message : null;
     },
@@ -4673,6 +4732,280 @@ async function fichaExpress(id, tipoNuevo){
 // INGRESOS POR HABITACIÓN + CALENDARIO POR CASA
 // ===============================================================
 let propsColor = {};
+
+// ---------- pestaña mobiliario ----------
+//
+// Un registro por mueble, y los gastos que genera colgando de
+// él. Sin filtro de mes a propósito: la pregunta que responde
+// esta pestaña es "cuánto me ha costado esta refri DESDE QUE LA
+// COMPRÉ", y eso no se ve mirando un mes.
+//
+// Dentro de cada mueble los gastos sí van agrupados por mes,
+// con el mes de separador.
+
+let mobAbiertos = new Set();     // qué muebles están desplegados
+let mobDatos    = {muebles: [], gastos: [], sueltos: []};
+
+const MOB_ICONO = {
+  refrigerador: "❄", lavadora: "◉", muebles: "▭", televisor: "▣", otro: "◇"
+};
+const mobIcono = t => MOB_ICONO[String(t || "otro").toLowerCase()] || MOB_ICONO.otro;
+
+async function cargarMobiliario(){
+  const [m, g, s] = await Promise.all([
+    sb.from("v_mobiliario").select("*").order("propiedad").order("nombre"),
+    sb.from("v_mobiliario_gastos").select("*").order("fecha", {ascending: false}),
+    sb.from("v_mobiliario_sueltos").select("*").order("fecha", {ascending: false})
+  ]);
+  if (m.error) throw new Error(m.error.message);
+  mobDatos = {muebles: m.data || [], gastos: g.data || [], sueltos: s.data || []};
+}
+
+// Los gastos de un mueble, partidos por mes y con el mes más
+// reciente arriba.
+function mobPorMes(muebleId){
+  const suyos = mobDatos.gastos.filter(x => x.mueble_id === muebleId);
+  const meses = [...new Set(suyos.map(x => x.mes))].sort().reverse();
+  return meses.map(mes => ({
+    mes,
+    total: suyos.filter(x => x.mes === mes).reduce((t, x) => t + Number(x.monto), 0),
+    filas: suyos.filter(x => x.mes === mes)
+                .sort((a, b) => a.fecha < b.fecha ? 1 : -1)
+  }));
+}
+
+function mobNombreMes(mes){
+  const [a, m] = mes.split("-").map(Number);
+  return RES_MESES[m - 1] + " " + a;
+}
+
+function mobFilaMueble(v, col){
+  const abierto = mobAbiertos.has(v.id);
+  const cab = `
+    <tr class="mob-cab ${abierto ? "abierta" : ""}" data-mob="${v.id}">
+      <td><span class="mob-flecha">${abierto ? "▾" : "▸"}</span>
+        <span class="mob-icono">${mobIcono(v.tipo)}</span> ${esc(v.nombre)}
+        ${v.estado !== "en uso"
+          ? `<span class="sello-fue">${esc(v.estado)}</span>` : ""}</td>
+      <td>${v.marca ? esc(v.marca) + (v.modelo ? " " + esc(v.modelo) : "") : "—"}</td>
+      <td>${v.fecha_compra ? F(v.fecha_compra)
+            : `<span style="color:var(--gris-claro)">sin fecha</span>`}</td>
+      <td class="num">${v.costo != null ? S(v.costo)
+            : `<span style="color:var(--gris-claro)">—</span>`}</td>
+      <td class="num">${v.gastado > 0 ? S(v.gastado)
+            : `<span style="color:var(--gris-claro)">0.00</span>`}</td>
+      <td class="num">${v.cuantos || 0}</td>
+      <td class="num"><b>${S(v.puesto_total)}</b></td>
+      <td class="num">${v.gasto_al_mes != null
+            ? S(v.gasto_al_mes) + "<small> /mes</small>" : "—"}</td>
+      <td><span class="acc"><button data-mob-ficha="${v.id}" title="Editar la ficha">${IC.lapiz}</button></span></td>
+    </tr>`;
+  if (!abierto) return cab;
+
+  const meses = mobPorMes(v.id);
+  const detalle = meses.length
+    ? meses.map(g => `
+        <div class="mob-mes">
+          <span>${mobNombreMes(g.mes)}</span>
+          <i></i>
+          <b>${S(g.total)}</b>
+        </div>
+        ${g.filas.map(f => `
+          <div class="mob-gasto">
+            <span class="mob-f">${F(f.fecha)}</span>
+            <span class="mob-c">${esc(f.categoria || "")}</span>
+            <span class="mob-d">${esc(f.descripcion || "")}</span>
+            <span class="mob-m">${S(f.monto)}</span>
+          </div>`).join("")}`).join("")
+    : `<p class="vacio" style="padding:14px 0">Este mueble todavía no ha generado ningún gasto.</p>`;
+
+  return cab + `
+    <tr class="mob-detalle"><td colspan="9"><div class="mob-caja">
+      ${v.notas ? `<p class="vacio" style="text-align:left;padding:0 0 10px">${esc(v.notas)}</p>` : ""}
+      ${detalle}
+      ${meses.length ? `<div class="mob-suma">
+        <span>desde ${v.primero ? F(v.primero) : "siempre"}</span>
+        <b>${S(v.gastado)} en ${v.cuantos} ${v.cuantos === 1 ? "gasto" : "gastos"}</b>
+      </div>` : ""}
+    </div></td></tr>`;
+}
+
+async function pintarMobiliario(){
+  await cargarMobiliario();
+  const vivos = mobDatos.muebles.filter(v => v.activo);
+  const casas = [...new Set(vivos.map(v => v.propiedad))].sort();
+
+  const bloques = casas.map(casa => {
+    const col = colorCasa(casa);
+    const suyos = vivos.filter(v => v.propiedad === casa);
+    const comprado = suyos.reduce((t, v) => t + Number(v.costo || 0), 0);
+    const gastado  = suyos.reduce((t, v) => t + Number(v.gastado || 0), 0);
+    return `
+      <div class="tarjeta" style="border-left:4px solid ${col}">
+        <div class="cabecera-tarjeta">
+          <h4 style="color:${col}">${esc(casa)}</h4>
+          <span class="chip" style="color:${col};background:${col}1A;border-color:${col}33">
+            <i></i>${suyos.length} ${suyos.length === 1 ? "mueble" : "muebles"}</span>
+        </div>
+        <div class="tabla-scroll"><table class="mob-tabla"><thead><tr>
+          <th>Mueble</th><th>Marca</th><th>Comprado</th>
+          <th class="num">Costó</th><th class="num">Ha gastado</th><th class="num">Veces</th>
+          <th class="num">Puesto</th><th class="num">Promedio</th><th></th>
+        </tr></thead><tbody>
+          ${suyos.map(v => mobFilaMueble(v, col)).join("")}
+          <tr class="mob-total">
+            <td colspan="3">Total de ${esc(casa)}</td>
+            <td class="num">${S(comprado)}</td>
+            <td class="num">${S(gastado)}</td>
+            <td></td>
+            <td class="num"><b>${S(comprado + gastado)}</b></td>
+            <td colspan="2"></td>
+          </tr>
+        </tbody></table></div>
+      </div>`;
+  }).join("");
+
+  const totComprado = vivos.reduce((t, v) => t + Number(v.costo || 0), 0);
+  const totGastado  = vivos.reduce((t, v) => t + Number(v.gastado || 0), 0);
+  const sinFecha    = vivos.filter(v => !v.fecha_compra).length;
+
+  $("contenido").innerHTML = `
+    <div class="cifras">
+      <div class="cifra"><span>MUEBLES</span><strong>${vivos.length}</strong></div>
+      <div class="cifra"><span>COSTARON</span><strong>${S(totComprado)}</strong></div>
+      <div class="cifra egre"><span>HAN GASTADO</span><strong>${S(totGastado)}</strong></div>
+      <div class="cifra"><span>PUESTO EN TOTAL</span><strong>${S(totComprado + totGastado)}</strong></div>
+    </div>
+
+    ${sinFecha ? `<div class="cal-aviso">
+      <b>${sinFecha} ${sinFecha === 1 ? "mueble no tiene" : "muebles no tienen"} fecha de compra ni costo.</b>
+      Sin eso no se puede calcular cuánto gasta al mes ni cuándo conviene cambiarlo.
+      Ábrelos con el lápiz y complétalos cuando tengas la boleta a mano.
+      </div>` : ""}
+
+    ${mobDatos.sueltos.length ? `<div class="tarjeta">
+      <div class="cabecera-tarjeta">
+        <h4>Gastos que parecen de mobiliario y no están asignados</h4>
+        <span class="chip"><i></i>${mobDatos.sueltos.length}</span>
+      </div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px">
+        No los asigno yo: adivinar a qué refri de qué casa pertenece cada uno sería
+        inventarte datos. Elige el mueble y se engancha.</p>
+      <div class="tabla-scroll">${tabla(
+        ["Fecha","Casa","Categoría","Descripción","Monto","Asignar a"],
+        mobDatos.sueltos.map(s => [
+          F(s.fecha), esc(s.propiedad || "—"), esc(s.categoria || ""),
+          esc(s.descripcion || ""), S(s.monto),
+          {html: `<select class="mob-asignar" data-suelto="${s.id}">
+            <option value="">— elegir mueble —</option>
+            ${vivos.filter(v => !s.propiedad || v.propiedad === s.propiedad)
+                   .map(v => `<option value="${v.id}">${esc(v.propiedad)} · ${esc(v.nombre)}</option>`).join("")}
+            ${s.propiedad ? `<optgroup label="otras casas">${
+              vivos.filter(v => v.propiedad !== s.propiedad)
+                   .map(v => `<option value="${v.id}">${esc(v.propiedad)} · ${esc(v.nombre)}</option>`).join("")
+            }</optgroup>` : ""}
+          </select>`, titulo: ""}
+        ]), [4])}</div>
+      </div>` : ""}
+
+    ${bloques || `<div class="tarjeta"><p class="vacio">
+      Todavía no hay muebles registrados. Corre mobiliario.sql en Supabase.</p></div>`}
+
+    <div class="tarjeta"><div class="pie-tarjeta">
+      <button class="secundario" data-mob-nuevo="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Añadir un mueble
+      </button>
+    </div></div>`;
+}
+
+document.addEventListener("click", async (e) => {
+  const c = e.target.closest(".mob-cab");
+  if (c) {
+    const id = Number(c.dataset.mob);
+    mobAbiertos.has(id) ? mobAbiertos.delete(id) : mobAbiertos.add(id);
+    return pintarMobiliario();
+  }
+  const f = e.target.closest("[data-mob-ficha]");
+  if (f) { e.stopPropagation(); return fichaMueble(Number(f.dataset.mobFicha)); }
+  const n = e.target.closest("[data-mob-nuevo]");
+  if (n) return fichaMueble(null);
+});
+
+document.addEventListener("change", async (e) => {
+  const s = e.target.closest(".mob-asignar");
+  if (!s || !s.value) return;
+  const {error} = await sb.from("egr_alquiler")
+    .update({mueble_id: Number(s.value)}).eq("id", Number(s.dataset.suelto));
+  if (error) return alert("No se pudo asignar: " + error.message);
+  avisoSuelto("Gasto asignado a su mueble.");
+  pintarMobiliario();
+});
+
+function fichaMueble(id){
+  const v = id ? mobDatos.muebles.find(x => x.id === id) : null;
+  const casas = PROPIEDADES.slice().sort();
+  abrirFicha(v ? "Ficha de " + v.nombre : "Mueble nuevo", `
+    <div class="rejilla">
+      <div><label>Casa</label><select id="mb-prop">${casas.map(p =>
+        `<option ${v?.propiedad === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+      <div><label>Qué es</label><input id="mb-nom" value="${esc(v?.nombre || "")}"
+        placeholder="Refrigerador, Microondas…"></div>
+      <div><label>Tipo</label><select id="mb-tipo">${
+        ["refrigerador","lavadora","muebles","televisor","otro"].map(t =>
+        `<option value="${t}" ${String(v?.tipo||"otro") === t ? "selected" : ""}
+          >${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join("")}</select></div>
+      <div><label>Habitación</label><input id="mb-hab" value="${esc(v?.habitacion || "")}"
+        placeholder="en blanco = áreas comunes"></div>
+      <div><label>Marca</label><input id="mb-marca" value="${esc(v?.marca || "")}"></div>
+      <div><label>Modelo</label><input id="mb-modelo" value="${esc(v?.modelo || "")}"></div>
+      <div><label>Serie</label><input id="mb-serie" value="${esc(v?.serie || "")}"></div>
+      <div><label>Cuándo se compró</label><input id="mb-fecha" type="date"
+        value="${esc(v?.fecha_compra || "")}"></div>
+      <div><label>Cuánto costó</label><input id="mb-costo" type="number" step="0.01"
+        value="${v?.costo ?? ""}"></div>
+      <div><label>Dónde se compró</label><input id="mb-prov" value="${esc(v?.proveedor || "")}"></div>
+      <div><label>Garantía hasta</label><input id="mb-gar" type="date"
+        value="${esc(v?.garantia_hasta || "")}"></div>
+      <div><label>Estado</label><select id="mb-estado">${
+        ["en uso","en reparación","dado de baja"].map(x =>
+        `<option ${String(v?.estado||"en uso") === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    </div>
+    <label>Notas</label><input id="mb-notas" value="${esc(v?.notas || "")}">
+    <p class="vacio" style="text-align:left;padding:8px 0 0">
+      Lo que costó comprarlo NO es un gasto del mes: es capital puesto. Por eso va
+      aquí y no en Egresos.</p>`,
+    async () => {
+      const fila = {
+        propiedad: $("mb-prop").value,
+        nombre: $("mb-nom").value.trim(),
+        tipo: $("mb-tipo").value,
+        habitacion: $("mb-hab").value.trim() || null,
+        marca: $("mb-marca").value.trim() || null,
+        modelo: $("mb-modelo").value.trim() || null,
+        serie: $("mb-serie").value.trim() || null,
+        fecha_compra: $("mb-fecha").value || null,
+        costo: $("mb-costo").value === "" ? null : Number($("mb-costo").value),
+        proveedor: $("mb-prov").value.trim() || null,
+        garantia_hasta: $("mb-gar").value || null,
+        estado: $("mb-estado").value,
+        notas: $("mb-notas").value.trim() || null
+      };
+      if (!fila.nombre) return "Ponle un nombre al mueble.";
+      const {error} = id
+        ? await sb.from("mobiliario").update(fila).eq("id", id)
+        : await sb.from("mobiliario").insert(fila);
+      return error ? "No se guardó: " + error.message : null;
+    },
+    id ? async () => {
+      const {error} = await sb.from("mobiliario")
+        .update({activo: false, estado: "dado de baja",
+                 notas: (v?.notas ? v.notas + " " : "")
+                        + "[dado de baja el " + new Date().toLocaleDateString("es-PE") + "]"})
+        .eq("id", id);
+      return error ? error.message : null;
+    } : null);
+}
 
 function colorCasa(prop){
   return propsColor[prop] || "#7A5EA8";
