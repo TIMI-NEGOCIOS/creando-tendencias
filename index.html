@@ -206,6 +206,19 @@
   .mob-tabla .mob-total td{border-top:1px solid var(--linea);color:var(--gris);
     font-size:13px;padding-top:11px}
   .mob-tabla small{color:var(--gris-claro);font-size:11px}
+  .mob-nro{font-size:11.5px;color:var(--gris-claro);font-weight:500;
+    font-variant-numeric:tabular-nums}
+  .mob-hasta{color:var(--gris-claro);font-size:12px;white-space:nowrap}
+  /* el que ya no esta en uso: se ve, pero en segundo plano */
+  .mob-tabla .mob-cab.jubilado > td{color:var(--gris-claro)}
+  .mob-tabla .mob-cab.jubilado .mob-icono,
+  .mob-tabla .mob-cab.jubilado .mob-nro{opacity:.55}
+  .mob-tabla .mob-cab.jubilado b{color:var(--gris);font-weight:400}
+  /* la cuenta del puesto: todo lo que ha costado tener eso ahi */
+  .mob-tabla .mob-puesto td{background:var(--lila-velo);color:var(--gris);
+    font-size:12.5px;padding-top:9px;padding-bottom:9px;
+    border-top:1px solid var(--linea)}
+  .mob-tabla .mob-puesto b{color:var(--morado-hondo);font-weight:500}
   .mob-asignar{font-size:13px;padding:7px 10px}
   @media(max-width:640px){
     .mob-caja{padding:12px 14px}
@@ -730,7 +743,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v47 · mobiliario</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v48 · el viejo y el nuevo</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -4774,6 +4787,14 @@ function mobPorMes(muebleId){
   }));
 }
 
+// "Refrigerador" → "refrigeradores" · "Muebles" ya es plural
+function mobPlural(nombre){
+  const n = String(nombre || "").toLowerCase().trim();
+  if (!n) return "muebles";
+  if (n.endsWith("s")) return n;
+  return /[aeiouáéíóú]$/.test(n) ? n + "s" : n + "es";
+}
+
 function mobNombreMes(mes){
   const [a, m] = mes.split("-").map(Number);
   return RES_MESES[m - 1] + " " + a;
@@ -4781,14 +4802,21 @@ function mobNombreMes(mes){
 
 function mobFilaMueble(v, col){
   const abierto = mobAbiertos.has(v.id);
+  // El #N solo aparece cuando de verdad hubo más de un aparato en
+  // ese puesto. Si nunca cambiaste la lavadora, ponerle "#1" sería
+  // ruido.
+  const nro = v.cuantos_en_puesto > 1
+    ? ` <span class="mob-nro">#${v.numero}</span>` : "";
   const cab = `
-    <tr class="mob-cab ${abierto ? "abierta" : ""}" data-mob="${v.id}">
+    <tr class="mob-cab ${abierto ? "abierta" : ""} ${v.vigente ? "" : "jubilado"}" data-mob="${v.id}">
       <td><span class="mob-flecha">${abierto ? "▾" : "▸"}</span>
-        <span class="mob-icono">${mobIcono(v.tipo)}</span> ${esc(v.nombre)}
-        ${v.estado !== "en uso"
-          ? `<span class="sello-fue">${esc(v.estado)}</span>` : ""}</td>
+        <span class="mob-icono">${mobIcono(v.tipo)}</span> ${esc(v.nombre)}${nro}
+        ${!v.vigente ? `<span class="sello-fue">dado de baja</span>`
+          : v.estado !== "en uso" ? `<span class="sello-relevo">${esc(v.estado)}</span>` : ""}</td>
       <td>${v.marca ? esc(v.marca) + (v.modelo ? " " + esc(v.modelo) : "") : "—"}</td>
-      <td>${v.fecha_compra ? F(v.fecha_compra)
+      <td>${v.fecha_compra
+            ? F(v.fecha_compra) + (v.baja_el
+                ? ` <span class="mob-hasta">→ ${F(v.baja_el)}</span>` : "")
             : `<span style="color:var(--gris-claro)">sin fecha</span>`}</td>
       <td class="num">${v.costo != null ? S(v.costo)
             : `<span style="color:var(--gris-claro)">—</span>`}</td>
@@ -4798,7 +4826,12 @@ function mobFilaMueble(v, col){
       <td class="num"><b>${S(v.puesto_total)}</b></td>
       <td class="num">${v.gasto_al_mes != null
             ? S(v.gasto_al_mes) + "<small> /mes</small>" : "—"}</td>
-      <td><span class="acc"><button data-mob-ficha="${v.id}" title="Editar la ficha">${IC.lapiz}</button></span></td>
+      <td><span class="acc">
+        <button data-mob-ficha="${v.id}" title="Editar la ficha">${IC.lapiz}</button>
+        ${v.vigente ? `<button data-mob-cambiar="${v.id}"
+          title="Lo cambiaste por uno nuevo: da de baja este y abre la ficha del nuevo"
+          >${IC.volverArriba}</button>` : ""}
+      </span></td>
     </tr>`;
   if (!abierto) return cab;
 
@@ -4832,27 +4865,47 @@ function mobFilaMueble(v, col){
 
 async function pintarMobiliario(){
   await cargarMobiliario();
-  const vivos = mobDatos.muebles.filter(v => v.activo);
+  // Los dados de baja NO se esconden: sus gastos existieron y son
+  // parte de lo que te ha costado tener ese mueble en esa casa.
+  // Se muestran debajo del que los reemplazó.
+  const vivos = mobDatos.muebles;
   const casas = [...new Set(vivos.map(v => v.propiedad))].sort();
 
   const bloques = casas.map(casa => {
     const col = colorCasa(casa);
-    const suyos = vivos.filter(v => v.propiedad === casa);
+    const suyos = vivos.filter(v => v.propiedad === casa)
+      // por puesto, y dentro de cada puesto el más nuevo arriba
+      .sort((a, b) => a.puesto < b.puesto ? -1 : a.puesto > b.puesto ? 1
+                    : b.numero - a.numero);
     const comprado = suyos.reduce((t, v) => t + Number(v.costo || 0), 0);
     const gastado  = suyos.reduce((t, v) => t + Number(v.gastado || 0), 0);
+    const enUso    = suyos.filter(v => v.vigente).length;
+    const jubilados = suyos.length - enUso;
     return `
       <div class="tarjeta" style="border-left:4px solid ${col}">
         <div class="cabecera-tarjeta">
           <h4 style="color:${col}">${esc(casa)}</h4>
           <span class="chip" style="color:${col};background:${col}1A;border-color:${col}33">
-            <i></i>${suyos.length} ${suyos.length === 1 ? "mueble" : "muebles"}</span>
+            <i></i>${enUso} en uso${jubilados ? ` · ${jubilados} de baja` : ""}</span>
         </div>
         <div class="tabla-scroll"><table class="mob-tabla"><thead><tr>
           <th>Mueble</th><th>Marca</th><th>Comprado</th>
           <th class="num">Costó</th><th class="num">Ha gastado</th><th class="num">Veces</th>
           <th class="num">Puesto</th><th class="num">Promedio</th><th></th>
         </tr></thead><tbody>
-          ${suyos.map(v => mobFilaMueble(v, col)).join("")}
+          ${suyos.map((v, i) => {
+            const fila = mobFilaMueble(v, col);
+            // después del último aparato de un puesto con historia,
+            // la cuenta de lo que ha costado el puesto entero
+            const esUltimo = i === suyos.length - 1 || suyos[i + 1].puesto !== v.puesto;
+            if (!esUltimo || v.cuantos_en_puesto < 2) return fila;
+            return fila + `
+              <tr class="mob-puesto"><td colspan="6">
+                ${v.cuantos_en_puesto} ${esc(mobPlural(v.nombre))} han pasado por esta casa
+              </td>
+              <td class="num"><b>${S(v.puesto_acumulado)}</b></td>
+              <td colspan="2"><small>en total</small></td></tr>`;
+          }).join("")}
           <tr class="mob-total">
             <td colspan="3">Total de ${esc(casa)}</td>
             <td class="num">${S(comprado)}</td>
@@ -4867,11 +4920,14 @@ async function pintarMobiliario(){
 
   const totComprado = vivos.reduce((t, v) => t + Number(v.costo || 0), 0);
   const totGastado  = vivos.reduce((t, v) => t + Number(v.gastado || 0), 0);
-  const sinFecha    = vivos.filter(v => !v.fecha_compra).length;
+  const enUsoTot    = vivos.filter(v => v.vigente).length;
+  const bajaTot     = vivos.length - enUsoTot;
+  const sinFecha    = vivos.filter(v => v.vigente && !v.fecha_compra).length;
 
   $("contenido").innerHTML = `
     <div class="cifras">
-      <div class="cifra"><span>MUEBLES</span><strong>${vivos.length}</strong></div>
+      <div class="cifra" title="${bajaTot} ${bajaTot === 1 ? "dado" : "dados"} de baja, que siguen contando su historia"><span>MUEBLES EN USO</span><strong>${enUsoTot}${
+        bajaTot ? `<small> +${bajaTot}</small>` : ""}</strong></div>
       <div class="cifra"><span>COSTARON</span><strong>${S(totComprado)}</strong></div>
       <div class="cifra egre"><span>HAN GASTADO</span><strong>${S(totGastado)}</strong></div>
       <div class="cifra"><span>PUESTO EN TOTAL</span><strong>${S(totComprado + totGastado)}</strong></div>
@@ -4930,7 +4986,63 @@ document.addEventListener("click", async (e) => {
   if (f) { e.stopPropagation(); return fichaMueble(Number(f.dataset.mobFicha)); }
   const n = e.target.closest("[data-mob-nuevo]");
   if (n) return fichaMueble(null);
+  const r = e.target.closest("[data-mob-cambiar]");
+  if (r) { e.stopPropagation(); return fichaReemplazo(Number(r.dataset.mobCambiar)); }
 });
+
+// Cambiaste un mueble por otro. Son dos aparatos distintos: el
+// viejo se jubila con sus gastos intactos y el nuevo empieza de
+// cero. Mezclarlos daría un promedio que no significa nada.
+function fichaReemplazo(id){
+  const v = mobDatos.muebles.find(x => x.id === id);
+  if (!v) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  abrirFicha("Reemplazar " + v.nombre + " de " + v.propiedad, `
+    <p class="vacio" style="text-align:left;padding:0 0 14px">
+      El de ahora queda dado de baja y se guarda entero: sus
+      ${v.cuantos} ${v.cuantos === 1 ? "gasto" : "gastos"} por ${S(v.gastado)} no se
+      pierden. El nuevo arranca en cero, con su propia ficha.</p>
+    <div class="rejilla">
+      <div><label>El de ahora salió el día</label><input id="rp-baja" type="date" value="${hoy}"></div>
+      <div><label>El nuevo entró el día</label><input id="rp-alta" type="date" value="${hoy}"></div>
+      <div><label>Cuánto costó el nuevo</label><input id="rp-costo" type="number" step="0.01"
+        placeholder="déjalo en blanco si todavía no sabes"></div>
+      <div><label>Marca</label><input id="rp-marca" placeholder="LG, Samsung…"></div>
+      <div><label>Modelo</label><input id="rp-modelo"></div>
+      <div><label>Dónde lo compraste</label><input id="rp-prov"></div>
+    </div>
+    <label>Por qué lo cambiaste</label>
+    <input id="rp-motivo" placeholder="se malogró el compresor, ya no valía la pena arreglarlo…">`,
+    async () => {
+      const baja = $("rp-baja").value, alta = $("rp-alta").value;
+      if (!baja || !alta) return "Faltan las fechas.";
+      if (v.fecha_compra && baja < v.fecha_compra)
+        return "El de ahora no puede salir antes de la fecha en que lo compraste.";
+
+      const motivo = $("rp-motivo").value.trim();
+      const {error: e1} = await sb.from("mobiliario").update({
+        activo: false, estado: "dado de baja", baja_el: baja,
+        notas: (v.notas ? v.notas + " " : "")
+               + "[dado de baja el " + baja + (motivo ? ": " + motivo : "") + "]"
+      }).eq("id", id);
+      if (e1) return "No se pudo dar de baja el viejo: " + e1.message;
+
+      const {error: e2} = await sb.from("mobiliario").insert({
+        propiedad: v.propiedad, nombre: v.nombre, tipo: v.tipo, habitacion: v.habitacion,
+        fecha_compra: alta,
+        costo: $("rp-costo").value === "" ? null : Number($("rp-costo").value),
+        marca: $("rp-marca").value.trim() || null,
+        modelo: $("rp-modelo").value.trim() || null,
+        proveedor: $("rp-prov").value.trim() || null,
+        reemplaza_a: id,
+        notas: "Reemplazó al anterior" + (motivo ? ", que " + motivo : "") + "."
+      });
+      if (e2) return "El viejo quedó de baja, pero el nuevo no se creó: " + e2.message;
+
+      avisoSuelto("Listo. El viejo queda con su historia y el nuevo empieza en cero.");
+      return null;
+    });
+}
 
 document.addEventListener("change", async (e) => {
   const s = e.target.closest(".mob-asignar");
@@ -4970,6 +5082,8 @@ function fichaMueble(id){
       <div><label>Estado</label><select id="mb-estado">${
         ["en uso","en reparación","dado de baja"].map(x =>
         `<option ${String(v?.estado||"en uso") === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+      <div><label>Dejó de usarse el</label><input id="mb-baja" type="date"
+        value="${esc(v?.baja_el || "")}"></div>
     </div>
     <label>Notas</label><input id="mb-notas" value="${esc(v?.notas || "")}">
     <p class="vacio" style="text-align:left;padding:8px 0 0">
@@ -4989,8 +5103,13 @@ function fichaMueble(id){
         proveedor: $("mb-prov").value.trim() || null,
         garantia_hasta: $("mb-gar").value || null,
         estado: $("mb-estado").value,
+        baja_el: $("mb-baja").value || null,
         notas: $("mb-notas").value.trim() || null
       };
+      // si tiene fecha de baja, deja de estar en uso: si no, saldría
+      // como vigente y su promedio se seguiría estirando hasta hoy
+      if (fila.baja_el) { fila.activo = false; fila.estado = "dado de baja"; }
+      else if (fila.estado !== "dado de baja") fila.activo = true;
       if (!fila.nombre) return "Ponle un nombre al mueble.";
       const {error} = id
         ? await sb.from("mobiliario").update(fila).eq("id", id)
