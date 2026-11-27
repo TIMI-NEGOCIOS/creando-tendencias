@@ -743,7 +743,7 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v48 · el viejo y el nuevo</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v49 · garantías aparte</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
 </div>
@@ -1201,6 +1201,9 @@ async function pintarCifras(){
     <div class="cifra egre"><span>GASTOS DEL NEGOCIO</span><strong>${S(r.egresos)}</strong></div>
     <div class="cifra"><span>COMISIÓN 10%</span><strong>${S(r.comision)}</strong></div>
     <div class="cifra util"><span>UTILIDAD OPERATIVA</span><strong>${S(r.utilidad)}</strong></div>
+    ${Number(r.garantias_entran) || Number(r.garantias_salen)
+      ? `<div class="cifra" title="Garantías de inquilinos recibidas menos devueltas este mes. Están en la caja, pero no son utilidad.">
+           <span>GARANTÍAS · NO ES UTILIDAD</span><strong>${S(Number(r.garantias_entran||0) - Number(r.garantias_salen||0))}</strong></div>` : ""}
     ${Number(r.pagos_deuda) ? `<div class="cifra"><span>PAGOS DE DEUDA</span><strong style="color:var(--lila)">${S(r.pagos_deuda)}</strong></div>` : ""}
     ${Number(r.pagos_deuda) || Number(r.aportes_socios)
       ? `<div class="cifra"><span>QUEDÓ EN CAJA</span><strong style="color:${Number(r.caja)>=0?"var(--verde)":"var(--alerta)"}">${S(r.caja)}</strong></div>` : ""}`;
@@ -1752,13 +1755,17 @@ async function pintarResumen(){
       <h4>Últimos meses</h4>
       <p class="vacio" style="text-align:left;padding:0 0 10px">
         La utilidad operativa mide solo el negocio de alquileres. Los pagos de deuda salen aparte,
-        porque no son un gasto: bajan la caja y bajan lo que se debe.</p>
+        porque no son un gasto: bajan la caja y bajan lo que se debe.
+        Desde el 27 de noviembre de 2026 tampoco cuentan las garantías de los inquilinos: entran a la
+        caja, pero son plata de ellos. Los meses anteriores quedaron como estaban.</p>
       <div class="tabla-scroll">${tabla(
-        ["Mes","Ingresos","Gastos","Comisión","Utilidad operativa","Pagos de deuda","Quedó en caja"],
+        ["Mes","Ingresos","Gastos","Comisión","Utilidad operativa","Pagos de deuda","Garantías aparte","Quedó en caja"],
         (meses||[]).map(m => [m.mes.slice(0,7), S(m.ingresos), S(m.egresos), S(m.comision),
           `<strong style="color:${Number(m.utilidad)>=0?"var(--verde)":"var(--alerta)"}">${S(m.utilidad)}</strong>`,
           Number(m.pagos_deuda) ? S(m.pagos_deuda) : "—",
-          S(m.caja)]), [1,2,3,4,5,6])}</div>
+          Number(m.garantias_entran) || Number(m.garantias_salen)
+            ? S(Number(m.garantias_entran||0) - Number(m.garantias_salen||0)) : "—",
+          S(m.caja)]), [1,2,3,4,5,6,7])}</div>
     </div>`;
 }
 
@@ -2152,7 +2159,11 @@ function avisoRoto(e){
     v_reservas:           "reservas.sql",
     v_reservas_choque:    "reservas.sql",
     v_reservas_sin_abono: "recordatorio-reservas.sql",
-    v_garantias:          "garantias-v2.sql"
+    v_garantias:          "garantias-v2.sql",
+    v_garantias_inquilinos: "garantias-inquilinos.sql",
+    v_garantias_sueltas:    "garantias-inquilinos.sql",
+    v_garantias_control:    "garantias-inquilinos.sql",
+    v_ing_garantia_fuera:   "garantias-inquilinos.sql"
   };
   let pista = "";
   if (vista && sql[vista[1]])
@@ -2276,12 +2287,15 @@ function rindeVentana(){
 
 async function pintarRinde(){
   const v = rindeVentana();
-  const [eg, ig, gar, props] = await Promise.all([
+  const [eg, ig, gar, props, fuera] = await Promise.all([
     sb.from("egr_alquiler").select("id, fecha, propiedad, categoria, categoria_texto, monto, descripcion, anulado"),
     sb.from("ing_alquiler").select("id, fecha, propiedad, monto, anulado"),
     sb.from("v_garantias_casa").select("*"),
-    sb.from("config_propiedad").select("propiedad, activa, habitaciones, remodelacion").order("propiedad")
+    sb.from("config_propiedad").select("propiedad, activa, habitaciones, remodelacion").order("propiedad"),
+    // las garantías de inquilinos desde el corte: no son lo que rinde la casa
+    sb.from("v_ing_garantia_fuera").select("id")
   ]);
+  const idsFuera = new Set((fuera.data || []).map(f => f.id));
 
   if (eg.error || ig.error || props.error) {
     $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">
@@ -2292,7 +2306,7 @@ async function pintarRinde(){
   const faltaGar   = !!gar.error;
 
   const egresos  = vivos(eg.data || []);
-  const ingresos = vivos(ig.data || []);
+  const ingresos = vivos(ig.data || []).filter(i => !idsFuera.has(i.id));
   const casas    = (props.data || []).filter(p => p.activa).map(p => p.propiedad);
   const remod    = Object.fromEntries((props.data || []).map(p => [p.propiedad, Number(p.remodelacion || 0)]));
   const cuartos  = Object.fromEntries((props.data || []).map(p => [p.propiedad, p.habitaciones]));
@@ -2588,21 +2602,35 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------- pestaña depósitos de garantía ----------
-// Una garantía no es un gasto: es plata tuya que está en el
-// bolsillo del dueño y vuelve al terminar el contrato.
+// Dos lados de la misma cosa:
+//   · ME DEBEN  la garantía que tú les diste a los dueños. Es plata
+//               tuya que vuelve al terminar cada contrato.
+//   · DEBO      la garantía que te dieron tus inquilinos. Es plata
+//               de ellos que está de paso en tu caja.
+// Desde corte_garantias() (27/11/2026) lo que te pagan de garantía
+// NO entra en la utilidad. Lo anterior quedó como estaba: esas
+// garantías ya contaron en su mes, así que devolverlas sí es gasto.
+// Todo eso lo decide garantias-inquilinos.sql; aquí solo se muestra.
+let garInq     = [];
+let garSueltas = [];
+
 async function pintarGarantias(){
-  const [{data: casas, error: e1}, {data: lista, error: e2}] = await Promise.all([
+  const [{data: casas, error: e1}, {data: lista, error: e2}, inq, sue, ctl] = await Promise.all([
     sb.from("v_garantias_casa").select("*"),
-    sb.from("v_garantias").select("*").order("fecha_entrega")
+    sb.from("v_garantias").select("*").order("fecha_entrega"),
+    sb.from("v_garantias_inquilinos").select("*"),
+    sb.from("v_garantias_sueltas").select("*").order("fecha"),
+    sb.from("v_garantias_control").select("*").maybeSingle()
   ]);
 
-  if (e1 || e2) {
-    $("cuerpo-alq").innerHTML = `<div class="tarjeta"><p class="vacio">
-      No pude leer las garantías.<br><br>${esc((e1 || e2).message)}<br><br>
-      Si dice que la vista no existe, corre <strong>registro-garantias.sql</strong> en Supabase.</p></div>`;
-    return;
-  }
+  // ---- lo que debes a tus inquilinos ----
+  const faltaSql = inq.error || sue.error || ctl.error;
+  garInq     = faltaSql ? [] : (inq.data || []);
+  garSueltas = faltaSql ? [] : (sue.data || []);
+  const debo  = garInq.reduce((t,x) => t + Math.max(Number(x.debo || 0), 0), 0);
+  const corte = ctl.data?.corte || "2026-11-27";
 
+  // ---- lo que te deben los dueños ----
   const g      = lista || [];
   const afuera = g.filter(x => !x.devuelta).reduce((t,x) => t + Number(x.monto||0), 0);
   const vuelta = g.filter(x =>  x.devuelta).reduce((t,x) => t + Number(x.monto||0), 0);
@@ -2611,8 +2639,120 @@ async function pintarGarantias(){
   const dobles = g.filter(x => x.tambien_es_gasto);
   const monto2 = dobles.reduce((t,x) => t + Number(x.monto||0), 0);
 
+  const parteDuenos = (e1 || e2)
+    ? `<div class="tarjeta"><p class="vacio" style="text-align:left">
+        No pude leer las garantías que diste a los dueños.<br><br>${esc((e1 || e2).message)}<br><br>
+        Si dice que la vista no existe, corre <strong>registro-garantias.sql</strong> en Supabase.</p></div>`
+    : duenosHtml();
+
   $("cuerpo-alq").innerHTML = `
     <div class="cifras">
+      <div class="cifra abonado"><span>TE DEBEN LOS DUEÑOS</span><strong>${(e1 || e2) ? "—" : S(afuera)}</strong></div>
+      <div class="cifra saldo"><span>LE DEBES A INQUILINOS</span><strong>${faltaSql ? "—" : S(debo)}</strong></div>
+      <div class="cifra"><span>NETO A TU FAVOR</span><strong>${(e1 || e2 || faltaSql) ? "—" : S(afuera - debo)}</strong></div>
+    </div>
+    ${inquilinosHtml()}
+    ${parteDuenos}`;
+
+  function inquilinosHtml(){
+    if (faltaSql) return `<div class="alerta" style="margin-top:22px"><span>
+      <b>Falta correr garantias-inquilinos.sql en Supabase.</b> Sin eso no puedo mostrar lo que
+      debes a tus inquilinos.<br><span style="font-size:12.5px">${esc(faltaSql.message)}</span></span></div>`;
+
+    const estadoChip = (x) => {
+      const e = x.estado;
+      const est = e === "falta dato" || e === "devuelta de más" || e === "cobrada de más"
+                    ? "background:#FDF4F7;color:#8A3550"
+                : e === "por devolver" ? "background:#FFF4DE;color:#8A5A00"
+                : e === "cerrada"      ? "background:#F2EFF4;color:var(--gris)"
+                :                        "";
+      return `<span class="etiqueta" style="${est};white-space:nowrap">${esc(e)}</span>`;
+    };
+    const utilCelda = (x) =>
+      x.ya_conto_como_utilidad
+        ? `<span style="color:var(--gris)" title="Entró antes del corte y ya sumó a la utilidad de su mes. Por eso devolverla sí es gasto.">ya contó · devolverla es gasto</span>`
+      : Number(x.cobrada) > 0
+        ? `<span style="color:var(--verde)" title="No sumó a ninguna utilidad. Devolverla no es gasto.">no es utilidad</span>`
+        : `<span style="color:var(--gris-claro)">—</span>`;
+    const boton = (txt, attr, id) =>
+      `<button class="secundario" style="padding:5px 14px;font-size:12px;white-space:nowrap" ${attr}="${id}">${txt}</button>`;
+
+    const filas = garInq.map(x => ({clase: x.estado === "cerrada" ? "anulada" : "", celdas: [
+      esc(x.nombre) + (x.activo ? "" : ` <span class="sello-fue" title="Ya no vive aquí">se fue</span>`),
+      esc((x.propiedad || "—") + (x.habitacion ? " · hab " + x.habitacion : "")),
+      Number(x.pactada) ? S(x.pactada) : `<span style="color:var(--gris-claro)">—</span>`,
+      S(x.cobrada) + (Number(x.ya_recibida)
+        ? ` <span class="etiqueta" title="${esc(S(x.ya_recibida))} los tenías de antes, sin pago anotado en Ingresos">de antes</span>` : ""),
+      Number(x.devuelta) ? S(x.devuelta) : `<span style="color:var(--gris-claro)">—</span>`,
+      Number(x.retenida) ? S(x.retenida) : `<span style="color:var(--gris-claro)">—</span>`,
+      `<strong>${S(x.debo)}</strong>`,
+      estadoChip(x),
+      utilCelda(x),
+      `<span class="acc">${Number(x.debo) > 0 ? boton("Devolver", "data-gar-devolver", x.inquilino_id) : ""}
+        ${Number(x.en_ingresos) === 0 && Number(x.devuelta) === 0
+            ? boton("Ya la tenía", "data-gar-yatenia", x.inquilino_id) : ""}</span>`
+    ]}));
+
+    const c = ctl.data || {};
+    const cuadra = Math.abs(Number(c.en_ingresos || 0) - Number(c.por_inquilino || 0) - Number(c.sueltas || 0)) < 0.005;
+    const faltan = garInq.filter(x => x.estado === "falta dato");
+
+    return `
+      <div class="srv-nota" style="margin-top:22px">
+        <b>Desde el ${F(corte)} la garantía de un inquilino no es utilidad.</b> Entra a la caja, pero
+        es plata de él que está de paso: aquí queda como algo que le debes. Cuando se la devuelvas,
+        tampoco es gasto.
+        <ul>
+          <li>Las garantías que entraron antes ya contaron como utilidad en su mes, y ese mes no se tocó.
+              Para que la cuenta sea pareja, devolver una de ésas <b>sí</b> es gasto.</li>
+          <li>Lo que te quedes por daños o deuda se vuelve tuyo: si la garantía no fue utilidad al entrar,
+              lo que retienes sí entra como utilidad del mes.</li>
+        </ul>
+      </div>
+
+      ${faltan.length ? `<div class="alerta" style="margin-top:18px"><span>
+        <b>${faltan.length === 1 ? "Una garantía no tiene" : faltan.length + " garantías no tienen"} ningún pago anotado:</b>
+        ${faltan.map(x => esc(x.nombre)).join(", ")}. El contrato dice que pagaron, pero no sé cuánto te dieron
+        de verdad. Si ya la tenías, usa <b>Ya la tenía</b>: así no se mueve la utilidad de ningún mes pasado.
+      </span></div>` : ""}
+
+      <div class="tarjeta">
+        <h4>Lo que debes a tus inquilinos · ${garInq.length}</h4>
+        <div class="tabla-scroll">${tabla(
+          ["Inquilino", "Casa", "Pactada", "Cobrada", "Devuelta", "Retenida", "Le debes", "Estado", "Utilidad", ""],
+          filas, [2, 3, 4, 5, 6])}</div>
+        <div class="pie-tarjeta">
+          <p class="vacio" style="text-align:left;padding:0;max-width:640px">
+            Para anotar una garantía nueva: pestaña <b>Ingresos</b>, concepto <b>garantía</b> y elige al inquilino.
+            Si es una garantía que ya tenías de antes, no la pongas en Ingresos con fecha vieja, porque cambiaría
+            la utilidad de ese mes: usa <b>Ya la tenía</b>.</p>
+          <span class="etiqueta" style="${cuadra ? "" : "background:#FDF4F7;color:#8A3550"}"
+                title="Todo lo que dice garantía en Ingresos tiene que estar en algún inquilino o en la lista de sueltas">
+            CONTROL · en Ingresos ${S(c.en_ingresos)} = por inquilino ${S(c.por_inquilino)} + sueltas ${S(c.sueltas)}
+            · ${cuadra ? "cuadra" : "NO CUADRA"}</span>
+        </div>
+      </div>
+
+      ${garSueltas.length ? `<div class="tarjeta">
+        <h4>Pagos sueltos · ${garSueltas.length}</h4>
+        <p class="vacio" style="text-align:left;padding:0 0 12px">
+          Movimientos de garantía que no están a nombre de nadie, o pagos cuya nota dice "garantía"
+          aunque el concepto diga otra cosa. Mientras no tengan inquilino, no se pueden sumar a lo que debes.</p>
+        <div class="tabla-scroll">${tabla(
+          ["Fecha", "Dónde", "Casa", "Quién", "Concepto", "Monto", "Qué pasa", ""],
+          garSueltas.map((s, k) => [
+            F(s.fecha), s.lado === "ingreso" ? "Ingresos" : "Egresos", esc(s.propiedad || "—"),
+            esc(s.quien || "—"), esc(s.concepto || "—"), S(s.monto), esc(s.problema),
+            /inquilino elegido/.test(s.problema)
+              ? `<button class="secundario" style="padding:5px 14px;font-size:12px;white-space:nowrap"
+                   data-gar-elegir="${k}">Elegir inquilino</button>` : ""
+          ]), [5])}</div>
+      </div>` : ""}`;
+  }
+
+  function duenosHtml(){ return `
+    <h3 style="margin:34px 0 0;font-weight:500;color:var(--morado-hondo)">Lo que te deben los dueños</h3>
+    <div class="cifras" style="margin-top:14px">
       <div class="cifra saldo"><span>AFUERA</span><strong>${S(afuera)}</strong></div>
       <div class="cifra abonado"><span>YA DEVUELTA</span><strong>${S(vuelta)}</strong></div>
       <div class="cifra"><span>DEPÓSITOS</span><strong>${g.length}</strong></div>
@@ -2672,8 +2812,139 @@ async function pintarGarantias(){
           Para corregir una fecha o anotar una devolución, por ahora se hace desde Supabase.
           Las líneas están al final de <strong>registro-garantias.sql</strong>.</p>
       </div>
-    </div>`;
+    </div>`; }
 }
+
+// La fecha de hoy en Lima, no en Londres: toISOString() a las
+// 8 de la noche ya da el día siguiente.
+function garHoy(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+         String(d.getDate()).padStart(2, "0");
+}
+
+// ---- Devolver: lo que le das de vuelta y lo que te quedas ----
+// Son dos movimientos distintos (un egreso y un ingreso). Si el
+// primero se guarda y el segundo no, la ficha NO se cierra: lo dice
+// en rojo, deja la devolución bloqueada para no repetirla, y al
+// volver a Guardar intenta solo lo que falta.
+function garDevolver(id){
+  const x = garInq.find(g => g.inquilino_id === id);
+  if (!x) return;
+  let pendiente = Number(x.debo || 0);
+  let devolucionHecha = false;
+
+  abrirFicha(`Devolver garantía · ${x.nombre}`, `
+    <p class="vacio" style="text-align:left;padding:0 0 14px">
+      Le debes <b>${S(pendiente)}</b>.
+      ${x.ya_conto_como_utilidad
+        ? "Esta garantía entró antes del corte y ya contó como utilidad en su mes, así que lo que devuelvas <b>será gasto</b> del mes. Lo que te quedes no se vuelve a contar."
+        : "Esta garantía no fue utilidad, así que lo que devuelvas <b>no es gasto</b>. Lo que te quedes por daños o deuda sí entra como utilidad del mes."}</p>
+    <div class="rejilla">
+      <div><label>Fecha</label><input id="gd-fecha" type="date" value="${garHoy()}"></div>
+      <div><label>Le devuelves</label><input id="gd-dev" type="number" step="0.01" min="0" value="${pendiente.toFixed(2)}"></div>
+      <div><label>Te quedas</label><input id="gd-ret" type="number" step="0.01" min="0" value="0"></div>
+    </div>
+    <div class="campo"><label>Motivo de lo que te quedas · o una nota</label>
+      <input id="gd-nota" placeholder="pintura de la pared, último recibo de luz"></div>`,
+    async () => {
+      const fecha = $("gd-fecha").value;
+      const dev   = devolucionHecha ? 0 : (+$("gd-dev").value || 0);
+      const ret   = +$("gd-ret").value || 0;
+      const nota  = $("gd-nota").value.trim();
+      if (!fecha)               return "Falta la fecha.";
+      if (dev < 0 || ret < 0)   return "Los montos no pueden ser negativos.";
+      if (dev + ret <= 0)       return "Pon cuánto le devuelves o cuánto te quedas.";
+      if (dev + ret > pendiente + 0.005)
+        return `Entre lo que devuelves y lo que te quedas suman ${S(dev + ret)}, pero solo le debes ${S(pendiente)}.`;
+
+      if (dev > 0) {
+        const {error} = await sb.from("egr_alquiler").insert({
+          fecha, propiedad: x.propiedad, categoria_texto: "devolución de garantía", categoria: "varios",
+          monto: dev, inquilino_id: x.inquilino_id,
+          descripcion: `Devolución de garantía · ${x.nombre}` + (nota ? " · " + nota : "")
+        });
+        if (error) return "No se guardó nada: " + error.message;
+        devolucionHecha = true;
+        pendiente -= dev;
+        $("gd-dev").value = "0";
+        $("gd-dev").disabled = true;
+      }
+
+      if (ret > 0) {
+        const {error} = await sb.from("ing_alquiler").insert({
+          fecha, propiedad: x.propiedad, habitacion: x.habitacion || null,
+          inquilino: x.nombre, inquilino_id: x.inquilino_id,
+          concepto: "garantía retenida", monto: ret, comision: 0, nota: nota || null
+        });
+        if (error) return dev > 0
+          ? `OJO: SE GUARDÓ A MEDIAS. La devolución de ${S(dev)} sí quedó guardada, pero lo que te quedas `
+            + `(${S(ret)}) NO. Motivo: ${error.message}. Dale Guardar otra vez para intentar solo lo que te `
+            + `quedas: la devolución no se va a repetir.`
+          : "No se guardó nada: " + error.message;
+      }
+      return null;
+    });
+}
+
+// ---- Ya la tenía: garantía cobrada antes de que existiera el sistema ----
+// No crea ningún pago, así que no mueve la utilidad de ningún mes.
+function garYaTenia(id){
+  const x = garInq.find(g => g.inquilino_id === id);
+  if (!x) return;
+  const actual = Number(x.ya_recibida || 0) || Number(x.pactada || 0);
+  abrirFicha(`Garantía que ya tenías · ${x.nombre}`, `
+    <p class="vacio" style="text-align:left;padding:0 0 14px">
+      Para una garantía que te dieron y nunca se anotó como pago. Queda como plata que le debes,
+      <b>sin tocar la utilidad de ningún mes</b>. Como nunca fue utilidad, devolverla tampoco será gasto.
+      Si en realidad nunca la pagó, pon 0.</p>
+    <div class="rejilla">
+      <div><label>Cuánto te dio</label><input id="gy-monto" type="number" step="0.01" min="0" value="${actual.toFixed(2)}"></div>
+    </div>`,
+    async () => {
+      const monto = +$("gy-monto").value || 0;
+      if (monto < 0) return "El monto no puede ser negativo.";
+      const {error} = await sb.from("inquilinos").update({garantia_ya_recibida: monto}).eq("id", x.inquilino_id);
+      return error ? error.message : null;
+    });
+}
+
+// ---- Elegir inquilino de un pago suelto ----
+async function garElegir(k){
+  const s = garSueltas[k];
+  if (!s) return;
+  const {data: gente, error} = await sb.from("inquilinos")
+    .select("id, nombre, propiedad, habitacion, activo").order("nombre");
+  if (error) { alert("No pude leer los inquilinos: " + error.message); return; }
+  const ops = (gente || []).map(q =>
+    `<option value="${q.id}">${esc(q.nombre)} · ${esc(q.propiedad || "—")}${
+      q.habitacion ? " hab " + esc(q.habitacion) : ""}${q.activo ? "" : " · se fue"}</option>`).join("");
+
+  abrirFicha("¿De quién es esta garantía?", `
+    <p class="vacio" style="text-align:left;padding:0 0 14px">
+      ${Fplano(s.fecha)} · ${esc(s.propiedad || "—")} · ${esc(s.concepto || "")} · <b>${S(s.monto)}</b>
+      ${s.quien ? "· dice «" + esc(s.quien) + "»" : ""}<br>
+      Elegir el inquilino no cambia ningún monto ni la utilidad de ningún mes: solo dice de quién es.</p>
+    <div class="campo"><label>Inquilino</label><select id="ge-inq"><option value="">—</option>${ops}</select></div>`,
+    async () => {
+      const id = Number($("ge-inq").value);
+      if (!id) return "Elige un inquilino.";
+      const q = (gente || []).find(p => p.id === id);
+      const {error} = s.lado === "ingreso"
+        ? await sb.from("ing_alquiler").update({inquilino_id: id, inquilino: q.nombre}).eq("id", s.id)
+        : await sb.from("egr_alquiler").update({inquilino_id: id}).eq("id", s.id);
+      return error ? error.message : null;
+    });
+}
+
+document.addEventListener("click", (e) => {
+  const d = e.target.closest("[data-gar-devolver]");
+  if (d) return garDevolver(Number(d.dataset.garDevolver));
+  const y = e.target.closest("[data-gar-yatenia]");
+  if (y) return garYaTenia(Number(y.dataset.garYatenia));
+  const s = e.target.closest("[data-gar-elegir]");
+  if (s) return garElegir(Number(s.dataset.garElegir));
+});
 
 // ---------- pestaña reservas · el calendario de Airbnb ----------
 // Una reserva no es un alquiler: es un rango de noches. Entrada el
