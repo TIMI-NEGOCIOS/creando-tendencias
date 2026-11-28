@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Qué puede cargar y con quién puede hablar la página. Si alguien
+     lograra colar un script, no podría mandar los datos a ningún otro
+     sitio: solo a Supabase. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' blob: https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
 <title>Creando Tendencias</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -326,6 +331,7 @@
   td{padding:11px 12px;border-bottom:1px solid #F2EDF4;color:var(--tinta);vertical-align:middle}
   tr:last-child td{border-bottom:none}
   .num{text-align:right;font-variant-numeric:tabular-nums}
+  td.num{white-space:nowrap}
   .vacio{padding:26px 12px;color:var(--gris-claro);font-size:14px;text-align:center}
   .tabla-scroll{overflow-x:auto;margin:0 -24px;padding:0 24px}
   .etiqueta{background:var(--lila-velo);color:var(--morado-hondo);border-radius:999px;padding:3px 11px;font-size:12px}
@@ -582,11 +588,90 @@
   .devol.si:hover{background:#DCF0E6;border-color:#8FD4B4;color:#1F6B4E}
   .celda-monto{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 
-  footer{padding:24px 0 30px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
+  footer{padding:24px 0 48px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--gris-claro);
     display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .oculto{display:none}
   @media (max-width:640px){.marco{padding:0 18px}main{padding:34px 0}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* ---------- EL MANUAL · abajo a la izquierda, chiquito ---------- */
+  .manual-btn{position:fixed;left:10px;bottom:10px;z-index:35;height:25px;padding:0 10px 0 8px;
+    display:inline-flex;align-items:center;gap:5px;border:1px solid var(--linea);border-radius:999px;
+    background:rgba(255,255,255,.92);color:var(--gris);font-size:11px;letter-spacing:.04em;
+    box-shadow:0 4px 14px -8px rgba(43,36,48,.35);transition:.2s}
+  .manual-btn svg{width:13px;height:13px}
+  .manual-btn:hover{color:var(--morado-hondo);border-color:var(--lila)}
+  .manual-velo{position:fixed;inset:0;z-index:60;background:rgba(43,36,48,.32);display:none}
+  .manual-velo.abierto{display:block}
+  .manual{position:absolute;left:0;top:0;bottom:0;width:min(440px,100vw);background:#fff;
+    display:flex;flex-direction:column;box-shadow:12px 0 40px -20px rgba(43,36,48,.5)}
+  .manual-cab{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;
+    border-bottom:1px solid var(--linea)}
+  .manual-cab strong{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:var(--morado-hondo)}
+  .manual-cab button{font-size:24px;line-height:1;color:var(--gris-claro);padding:2px 8px}
+  .manual-indice{display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--linea)}
+  .manual-indice button{border:1px solid var(--linea);border-radius:999px;padding:3px 11px;font-size:12px;color:var(--gris)}
+  .manual-indice button.viva,.manual-indice button:hover{background:var(--lila-velo);border-color:var(--lila);color:var(--morado-hondo)}
+  .manual-cuerpo{overflow-y:auto;padding:6px 18px 40px;font-size:13.5px;line-height:1.7;color:var(--gris)}
+  .manual-cuerpo section{padding:16px 0;border-bottom:1px solid #F2EDF4}
+  .manual-cuerpo section.resalta{background:linear-gradient(90deg,var(--lila-velo),transparent);
+    margin:0 -18px;padding:16px 18px}
+  .manual-cuerpo h5{font-size:15px;font-weight:500;color:var(--morado-hondo);margin-bottom:6px}
+  .manual-cuerpo b{color:var(--tinta);font-weight:500}
+  .manual-cuerpo ul,.manual-cuerpo ol{padding-left:18px;margin:6px 0}
+  .manual-cuerpo li{margin-bottom:4px}
+  .manual-cuerpo .ejemplo{border:1px solid var(--linea);border-radius:12px;padding:10px 13px;margin:8px 0;
+    background:#FBFAFC;font-variant-numeric:tabular-nums}
+
+  /* ---------- SOLO CONSULTA ----------
+     Las cuentas que no son super administradora ven todo y no
+     tocan nada. Esconder los botones es por comodidad; lo que de
+     verdad impide escribir son las reglas de la base. */
+  .solo-lectura .acc, .solo-lectura #flotante, .solo-lectura .solo-admin,
+  .solo-lectura [data-res-nueva], .solo-lectura [data-res-ingreso], .solo-lectura [data-liq],
+  .solo-lectura [data-liq-corregir], .solo-lectura [data-liq-anular], .solo-lectura #alertas button,
+  .solo-lectura .exp-btn, .solo-lectura [data-devolver], .solo-lectura [data-arr-abonar],
+  .solo-lectura [data-arr-editar]{display:none!important}
+  .solo-lectura td[data-campo]{pointer-events:none}
+  .aviso-consulta{display:none;margin:0 0 16px;border:1px solid var(--linea);border-radius:14px;
+    padding:10px 15px;font-size:13px;color:var(--gris);background:#FBFAFC}
+  .solo-lectura .aviso-consulta{display:block}
+
+  /* ---------- AIRBNB · LIQUIDAR ---------- */
+  .liq-cabeza{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;color:var(--gris);
+    margin:-4px 0 16px}
+  .liq-pregunta{border:1px solid var(--lila);background:var(--lila-velo);border-radius:16px;
+    padding:16px 18px;margin:18px 0 14px}
+  .liq-pregunta > p{font-size:15px;color:var(--tinta);margin-bottom:10px}
+  .liq-sino{display:flex;gap:10px;flex-wrap:wrap}
+  .liq-sino label{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--linea);background:#fff;
+    border-radius:999px;padding:9px 16px;font-size:14px;cursor:pointer;color:var(--tinta);margin:0}
+  .liq-sino input{accent-color:var(--morado-hondo);width:16px;height:16px;margin:0}
+  .liq-sino label:has(input:checked){border-color:var(--morado-hondo);box-shadow:0 0 0 2px var(--lila)}
+  .liq-detalle{margin-top:14px}
+  .liq-resumen{border-radius:14px;padding:12px 15px;font-size:13.5px;line-height:1.7;margin-top:14px;
+    background:#FBFAFC;border:1px dashed var(--linea);color:var(--gris)}
+  .liq-resumen b{color:var(--tinta);font-weight:500}
+  .liq-resumen .ojo{color:#8A5A12}
+  .liq-pend{border-color:#E8C9A8}
+  .liq-pend h4{color:#8A5A12}
+  .liq-ok{display:inline-flex;align-items:center;gap:6px;color:var(--verde);font-size:13px}
+  .liq-falta{color:#8A5A12;white-space:nowrap}
+  .liq-menos{color:var(--alerta);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .liq-sub{display:block;font-size:11.5px;color:var(--gris-claro);margin-top:2px;white-space:nowrap}
+  .sello-airbnb{display:inline-block;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 7px;border-radius:7px;margin-left:6px;white-space:nowrap;vertical-align:1px;
+    color:#9B3552;background:#FBEFF3;border:1px solid #EFC6D3}
+  .sello-confirmar{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:7px;margin-left:6px;
+    color:#8A5A12;background:#FDF4E7;border:1px solid #E8C9A8;white-space:nowrap}
+  .banda{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;border-radius:14px;padding:12px 16px;
+    margin-top:16px;font-size:13.5px;line-height:1.6;border:1px solid #E8C9A8;background:#FDF8F2;color:var(--gris)}
+  .banda b{color:var(--tinta);font-weight:500}
+  .banda .secundario{margin-left:auto}
+  .banda.bien{border-color:#BFE6D4;background:#F2FAF6}
+  .cuadre-airbnb{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;font-size:14px;color:var(--gris);
+    font-variant-numeric:tabular-nums}
+  .cuadre-airbnb b{color:var(--tinta);font-weight:500}
 </style>
 </head>
 <body>
@@ -743,12 +828,30 @@
 
   <footer>
     <span>Performancia en la Industria SAC · Lima, Perú</span>
-    <span><span id="version-app">v49 · garantías aparte</span> · <button id="estado-conexion" onclick="recargarTodo()"
+    <span><span id="version-app">v50 · Airbnb trazable</span> · <button id="estado-conexion" onclick="recargarTodo()"
       title="Volver a pedir los datos a Supabase" style="color:inherit">Modo demostración</button></span>
   </footer>
+
+  <!-- el manual: siempre abajo a la izquierda, chiquito -->
+  <button class="manual-btn" id="manual-btn" aria-label="Abrir el manual de uso" title="Manual de uso">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z"/></svg>
+    Manual
+  </button>
+  <div class="manual-velo" id="manual-velo" aria-hidden="true">
+    <aside class="manual" id="manual" role="dialog" aria-label="Manual de uso">
+      <div class="manual-cab">
+        <strong>Manual de uso</strong>
+        <button id="manual-cerrar" aria-label="Cerrar el manual">&times;</button>
+      </div>
+      <nav class="manual-indice" id="manual-indice"></nav>
+      <div class="manual-cuerpo" id="manual-cuerpo"></div>
+    </aside>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- versión fija: si la librería saca una versión nueva, no se cuela
+     sola en la página sin que nadie la haya probado -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <!-- config.js es opcional: si existe, sus valores mandan sobre los del index -->
 <script src="config.js" onerror="void 0"></script>
 <script>
@@ -790,8 +893,16 @@ const cacheRed = new Map();
 let maestrosEn = 0;
 let enVuelo = 0;
 
-// RPC que solo leen: no deben vaciar la caché
-const RPC_LECTURA = ["cumplimiento_mes"];
+// RPC que solo leen: no deben vaciar la caché, y una cuenta de
+// solo consulta sí puede llamarlas
+const RPC_LECTURA = ["cumplimiento_mes", "calendario_mes", "panel_airbnb"];
+
+// ¿La cuenta que entró es de solo consulta? Todas menos la super
+// administradora. Las reglas de la base ya les impiden escribir;
+// esto es para que, si alguna vez aprietan algo, lo sepan con una
+// frase clara en vez de un error raro.
+const soloConsulta = () => document.body.classList.contains("solo-lectura");
+const MSG_CONSULTA = "Tu cuenta es de solo consulta: puedes ver todo, pero no cambiar nada.";
 
 function vaciarCache(){ cacheRed.clear(); maestrosEn = 0; }
 
@@ -809,6 +920,11 @@ async function fetchCacheado(url, opts = {}){
   const esRpcLectura = RPC_LECTURA.some(n => clave.includes("/rpc/" + n));
 
   if (metodo !== "GET" && !esRpcLectura) {
+    // la sesión (entrar, salir, renovar) sí pasa siempre
+    if (soloConsulta() && !clave.includes("/auth/")) {
+      return new Response(JSON.stringify({message: MSG_CONSULTA, code: "42501"}),
+        {status: 403, headers: {"Content-Type": "application/json"}});
+    }
     vaciarCache();
     return fetch(url, opts);
   }
@@ -898,7 +1014,7 @@ function F(iso){
 
 // La misma fecha sin etiquetas, para un title= o un alert.
 const Fplano = iso => String(F(iso)).replace(/<[^>]+>/g, "");
-const esc = t => String(t ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+const esc = t => String(t ?? "").replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#39;"}[c]));
 const mostrar = id => {
   ["pantalla-acceso","pantalla-divisiones","pantalla-panel","pantalla-modulo","pantalla-admin"]
     .forEach(p => $(p).classList.toggle("oculto", p !== id));
@@ -953,6 +1069,7 @@ async function entrar(){
 
 function abrirDivisiones(perfil){
   perfilActual = perfil;
+  document.body.classList.toggle("solo-lectura", perfil.rol !== "super_admin");
   $("quien-nombre").textContent = perfil.nombre || "";
   $("quien-rol").textContent = ROLES[perfil.rol] || perfil.rol;
   $("fila-admin").classList.toggle("oculto", perfil.rol !== "super_admin");
@@ -963,6 +1080,8 @@ function abrirDivisiones(perfil){
 $("btn-salir").addEventListener("click", async () => {
   if (conectado) await sb.auth.signOut();
   $("email").value = ""; $("clave").value = ""; perfilActual = null;
+  document.body.classList.remove("solo-lectura");
+  vaciarCache();
   mostrar("pantalla-acceso");
 });
 
@@ -1044,11 +1163,14 @@ function modEgresos(){
         <input id="mes" type="month" value="${mesActual}">
       </div>
     </div>
+    <div class="aviso-consulta">Estás en <b>modo consulta</b>: ves todo, pero no puedes cambiar nada.
+      Si algo no se entiende, abre el <b>Manual</b> abajo a la izquierda.</div>
     <div class="cifras" id="cifras"></div>
     <div id="alertas"></div>
     <div class="express" id="barra-express"></div>
     <div class="pestanas">
       <button class="pestana" data-p="express">Exprés</button>
+      <button class="pestana" data-p="airbnb">Airbnb</button>
       <button class="pestana" data-p="ingresos">Ingresos</button>
       <button class="pestana" data-p="habitacion">Ingresos por habitación</button>
       <button class="pestana" data-p="egresos">Egresos</button>
@@ -1159,7 +1281,21 @@ function esqueletoListo(id){
   if (caja) caja.setAttribute("aria-busy", "false");
 }
 
+// Igual que refrescarAlq: una pestaña que revienta muestra el error
+// en pantalla, no se queda en el esqueleto para siempre.
 async function refrescar(){
+  try {
+    await refrescarInterno();
+  } catch (e) {
+    console.error("Pestaña " + pestanaActual + ":", e);
+    esqueletoListo("cifras");
+    esqueletoListo("contenido");
+    if ($("contenido")) $("contenido").innerHTML = avisoRoto(e)
+      .replace('onclick="refrescarAlq()"', 'onclick="refrescar()"');
+  }
+}
+
+async function refrescarInterno(){
   document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("viva", p.dataset.p === pestanaActual));
   if (!conectado) {
     $("cifras").innerHTML = "";
@@ -1171,6 +1307,8 @@ async function refrescar(){
   esqueleto("contenido",
     pestanaActual === "egresos" || pestanaActual === "ingresos"
       ? huesoFormulario(4) + huesoTarjeta(190, 6, 7)
+      : pestanaActual === "airbnb"
+      ? `<div class="cifras">${huesoCifras(4)}</div>` + huesoTarjeta(210, 3, 7) + huesoTarjeta(190, 4, 9)
       : huesoTarjeta(170, 6, 6) + huesoTarjeta(150, 4, 4));
 
   // Mobiliario no se filtra por mes: se ve todo lo que ha
@@ -1182,9 +1320,10 @@ async function refrescar(){
   await pintarCifras();
   esqueletoListo("cifras");
   await pintarBarraExpress();
-  if (pestanaActual === "express") pintarExpress();
-  else if (pestanaActual === "ingresos") pintarIngresos();
-  else if (pestanaActual === "habitacion") pintarPorHabitacion();
+  if (pestanaActual === "express") await pintarExpress();
+  else if (pestanaActual === "airbnb") await pintarAirbnb();
+  else if (pestanaActual === "ingresos") await pintarIngresos();
+  else if (pestanaActual === "habitacion") await pintarPorHabitacion();
   else if (pestanaActual === "egresos") pintarEgresos();
   else if (pestanaActual === "mobiliario") await pintarMobiliario();
   else if (pestanaActual === "deudas") pintarDeudas();
@@ -1312,8 +1451,14 @@ function aplicarFiltros(filas, columnas){
 
 async function pintarIngresos(){
   const {desde, hasta} = rango();
-  const {data} = await sb.from("ing_alquiler").select("*")
-    .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false});
+  // los pagos del mes y lo de Airbnb salen juntos, en paralelo
+  const [{data}, panel] = await Promise.all([
+    sb.from("ing_alquiler").select("*")
+      .gte("fecha", desde).lte("fecha", hasta).order("fecha", {ascending:false}),
+    cargarPanelAirbnb(desde)
+  ]);
+  // cada ingreso que vino de una reserva, con su liquidación al lado
+  const liqDe = new Map((panel.datos?.liquidaciones || []).map(l => [l.ingreso_id, l]));
 
   const columnas = [
     {campo:"fecha", titulo:"Fecha", tipo:"fecha"},
@@ -1326,8 +1471,20 @@ async function pintarIngresos(){
   const filas = aplicarFiltros(vivos(todos), columnas);
   const anulados = todos.filter(r => r.anulado).length;
 
+  // lo de Airbnb de este mes, en una línea
+  const liqMes = (panel.datos?.liquidaciones || []).filter(l => !l.anulado);
+  const airB = liqMes.reduce((t,l) => t + Number(l.bruto), 0);
+  const airD = liqMes.reduce((t,l) => t + Number(l.descuento), 0);
+
   $("contenido").innerHTML = `
-    <div class="tarjeta">
+    ${bandasAirbnb(panel)}
+    ${liqMes.length ? `<div class="banda bien">
+      <span><b>Airbnb este mes:</b> los huéspedes pagaron ${S(airB)}
+        ${airD ? `− descuentos ${S(airD)}` : "· sin descuentos"}
+        = <b>llegó ${S(airB - airD)}</b> · ${liqMes.length} ${liqMes.length === 1 ? "volante" : "volantes"}.
+        Eso es lo que suma aquí.</span>
+      <button class="secundario" data-ir-pestana="airbnb">Ver el detalle</button></div>` : ""}
+    <div class="tarjeta solo-admin">
       <h4>Registrar un pago</h4>
       <div class="rejilla">
         <div><label>Fecha</label><input id="i-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -1354,9 +1511,14 @@ async function pintarIngresos(){
          {html:(verSocios?"Comisión ▾":"Comisión ▸"), clase:"plegable-socios", datos:'data-plegar="socios"'},
          ...(verSocios ? ["Magalli","Matías"] : []),
          "Método","Nota",""],
-        filas.map(r => ({clase: r.anulado ? "anulada" : "", celdas: [
+        filas.map(r => { const l = liqDe.get(r.id); return {clase: r.anulado ? "anulada" : "", celdas: [
           F(r.fecha), `<span class="etiqueta">${esc(r.propiedad)}</span>`, esc(r.habitacion),
-          esc(r.inquilino), chipConcepto(r.concepto||"alquiler", "ingreso"), S(r.monto||r.renta),
+          l ? `<span class="volante-sello">${esc(r.inquilino)}</span>${
+                l.confirmado ? "" : `<span class="sello-confirmar" title="Pasó sin la pregunta del descuento">sin confirmar</span>`}
+               <span class="liq-sub">pagó ${S(l.bruto)}${!l.confirmado ? " · no se preguntó el descuento"
+                 : Number(l.descuento) ? ` − ${esc(l.motivo || "descuento")} ${S(l.descuento)}` : " · sin descuento"}</span>`
+            : esc(r.inquilino),
+          chipConcepto(r.concepto||"alquiler", "ingreso"), S(r.monto||r.renta),
           celdaEstado(r.id, "comision_estado", r.comision_estado, r.comision,
                       generaComision(r.concepto)),
           ...(verSocios ? [
@@ -1365,10 +1527,17 @@ async function pintarIngresos(){
             celdaEstado(r.id, "matias_estado",  r.matias_estado,
                         r.pago_matias  ?? r.comision/2, generaComision(r.concepto))
           ] : []),
-          esc(r.metodo_pago||"—"), esc(r.nota||"") + selloAnulado(r),
-          `<span class="acc">${clipComprobante("ingreso", r.id)}
+          // en las de Airbnb el desglose ya está bajo el volante: la
+          // nota se queda con la estadía, para no repetirlo
+          esc(r.metodo_pago||"—"), esc(l ? String(r.nota || "").split(" · pagó")[0] : (r.nota || "")) + selloAnulado(r),
+          // lo que viene de una reserva se corrige o se anula desde su
+          // liquidación: así el ingreso y la reserva no se separan
+          l ? `<span class="acc">${clipComprobante("ingreso", r.id)}
+               <button data-liq-corregir="${l.id}" title="Corregir el descuento o la fecha">${IC.lapiz}</button>
+               ${l.anulado ? "" : `<button class="peligro" data-liq-anular="${l.id}" title="Anular este ingreso y su liquidación · no se borra">${IC.anular}</button>`}</span>`
+            : `<span class="acc">${clipComprobante("ingreso", r.id)}
            <button onclick="editarIngreso(${r.id})" title="Editar">${IC.lapiz}</button>
-           ${botonAnular("ing_alquiler", r, "pago")}</span>`]})),
+           ${botonAnular("ing_alquiler", r, "pago")}</span>`]}; }),
         verSocios ? [5,6,7,8] : [5,6])}</div>
       <div class="pie-tarjeta">${botonVerAnulados(anulados)}</div>
     </div>`;
@@ -1398,6 +1567,13 @@ window.guardarIngreso = async () => {
     metodo_pago: $("i-metodo").value || null,
     nota: $("i-nota").value.trim() || null
   };
+  // La plata de Airbnb no se mete a mano: entra desde su reserva,
+  // con la pregunta del descuento. Si no, queda suelta y sin volante.
+  if (String(fila.concepto).trim().toLowerCase() === "airbnb") {
+    alert("La plata de Airbnb se pasa desde la pestaña Airbnb, reserva por reserva.\n\n"
+      + "Así queda atada a su volante y con su descuento anotado. Te llevo allá.");
+    pestanaActual = "airbnb"; refrescar(); return;
+  }
   if (!fila.inquilino) { alert("Elige un inquilino."); return; }
   if (!fila.monto) { alert("Falta el monto."); return; }
   const {error} = await sb.from("ing_alquiler").insert(fila);
@@ -1447,7 +1623,7 @@ async function pintarEgresos(){
   const anuladosEgr = todos.filter(r => r.anulado).length;
 
   $("contenido").innerHTML = `
-    <div class="tarjeta">
+    <div class="tarjeta solo-admin">
       <h4>Registrar un gasto</h4>
       <div class="rejilla">
         <div><label>Fecha</label><input id="e-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -1575,7 +1751,7 @@ async function pintarDeudas(){
   const anuladas = (crudo||[]).filter(r => r.anulado).length;
 
   $("contenido").innerHTML = `
-    <div class="tarjeta">
+    <div class="tarjeta solo-admin">
       <h4>Anotar una deuda</h4>
       <div class="rejilla">
         <div><label>Socio que debe</label><select id="d-deudor">
@@ -2102,6 +2278,8 @@ let datos = {props:[], inq:[], pagos:[], cx:[], rec:[]};
 
 async function modAlquileres(){
   $("cuerpo-modulo").innerHTML = `
+    <div class="aviso-consulta">Estás en <b>modo consulta</b>: ves todo, pero no puedes cambiar nada.
+      Si algo no se entiende, abre el <b>Manual</b> abajo a la izquierda.</div>
     <div class="pestanas" id="pest-alq">
       <button class="pestana" data-pa="inquilinos">Inquilinos</button>
       <button class="pestana" data-pa="pagos">Pagos</button>
@@ -2163,10 +2341,15 @@ function avisoRoto(e){
     v_garantias_inquilinos: "garantias-inquilinos.sql",
     v_garantias_sueltas:    "garantias-inquilinos.sql",
     v_garantias_control:    "garantias-inquilinos.sql",
-    v_ing_garantia_fuera:   "garantias-inquilinos.sql"
+    v_ing_garantia_fuera:   "garantias-inquilinos.sql",
+    v_liquidaciones:          "airbnb-liquidacion.sql",
+    v_reservas_por_liquidar:  "airbnb-liquidacion.sql",
+    v_liquidaciones_control:  "airbnb-liquidacion.sql"
   };
   let pista = "";
-  if (vista && sql[vista[1]])
+  if (/panel_airbnb|liquidar_reserva|liquidaciones_reserva/.test(msg))
+    pista = `A la base le falta lo de Airbnb: córrele <b>airbnb-liquidacion.sql</b> en Supabase.`;
+  else if (vista && sql[vista[1]])
     pista = `Falta la vista <b>${esc(vista[1])}</b> en la base: córrele <b>${sql[vista[1]]}</b> en Supabase.`;
   else if (falta)
     pista = `El archivo de la página está incompleto o es de una versión vieja
@@ -2977,6 +3160,19 @@ let resChoques  = [];
 let resHuespedes = [];
 let resOcupadas = [];   // reservas que caen en el cuarto de un inquilino
 let resSinVista = [];   // vistas que la base todavía no tiene
+let resLiq      = [];   // lo que ya pasó a Ingresos · null = falta airbnb-liquidacion.sql
+
+// Cuánto de una reserva ya está en Ingresos (solo lo vivo)
+function resLiquidado(r){
+  const ls = (resLiq || []).filter(l => l.reserva_id === r.id && !l.anulado);
+  return {
+    bruto: ls.reduce((t,l) => t + Number(l.bruto), 0),
+    neto:  ls.reduce((t,l) => t + Number(l.neto), 0),
+    desc:  ls.reduce((t,l) => t + Number(l.descuento), 0),
+    sinConfirmar: ls.some(l => !l.confirmado),
+    veces: ls.length
+  };
+}
 
 // ¿Está instalada la parte de volantes? Si no, la pestaña sigue
 // funcionando entera; solo no hay códigos de huésped.
@@ -3019,12 +3215,14 @@ const resSuma = (iso, n) => {
 const resCubre = (r, iso) => iso >= r.entrada && iso < r.salida;
 
 async function cargarReservas(){
-  const [r, c, v, o] = await Promise.all([
+  const [r, c, v, o, l] = await Promise.all([
     sb.from("v_reservas").select("*").order("entrada"),
     sb.from("v_reservas_choque").select("*"),
     sb.from("v_huespedes").select("*").order("numero"),
-    sb.from("v_reservas_ocupadas").select("*")
+    sb.from("v_reservas_ocupadas").select("*"),
+    sb.from("v_liquidaciones").select("id, reserva_id, fecha, bruto, hubo_descuento, descuento, neto, motivo, metodo_pago, nota, confirmado, anulado, ingreso_id, volante, propiedad, habitacion, entrada, salida, noches, canal")
   ]);
+  resLiq = l.error ? null : (l.data || []);
   // v_reservas es imprescindible: sin ella no hay pestaña. Las
   // otras tres son extras, así que si faltan la pestaña abre
   // igual, solo que sin volantes o sin el aviso de cuartos
@@ -3037,7 +3235,8 @@ async function cargarReservas(){
   resSinVista  = [
     [c, "v_reservas_choque",   "reservas.sql"],
     [v, "v_huespedes",         "huespedes.sql"],
-    [o, "v_reservas_ocupadas", "airbnb-hab3.sql"]
+    [o, "v_reservas_ocupadas", "airbnb-hab3.sql"],
+    [l, "v_liquidaciones",     "airbnb-liquidacion.sql"]
   ].filter(([q]) => q.error).map(([, vista, archivo]) => ({vista, archivo}));
   // la primera vez, se abre en la casa que si tiene reservas
   if (resCasa === null && resDatos.length) {
@@ -3193,8 +3392,10 @@ function pintarReservas(){
             cuenta como el departamento entero.</li>
           <li>Si una reserva cae en una habitación donde vive un inquilino, sale un aviso
             debajo del calendario. No te lo bloqueo: a veces querrás guardarla igual.</li>
-          <li><b>Cobrado</b> es lo que ya entró de estas reservas. No está en la utilidad
-            hasta que uses el botón <i>Pasar a Ingresos</i> de cada fila.</li>
+          <li><b>Cobrado</b> es lo que pagó el huésped. No está en la utilidad hasta que
+            uses el botón <i>Pasar a Ingresos</i> de cada fila: ahí te pregunta si Airbnb
+            hizo algún descuento, y entra en Ingresos <b>lo que llegó</b>, con el nombre
+            del volante.</li>
         </ul></div>` : ""}
 
       ${resCalendario()}
@@ -3228,7 +3429,7 @@ function pintarReservas(){
     <div class="tarjeta">
       <div class="cabecera-tarjeta"><h4>Las reservas de ${RES_MESES[mm-1]}</h4></div>
       <div class="tabla-scroll">${tabla(
-        ["Entrada","Salida","Noches","Dónde","Volante","Huésped","Canal","Pagado","Total","Por noche","Estado","En utilidad",""],
+        ["Entrada","Salida","Noches","Dónde","Volante","Huésped","Canal","Pagado","Total","Por noche","Estado","En Ingresos",""],
         delMes.slice().sort((a,b) => a.entrada < b.entrada ? -1 : 1).map(r => ({celdas:[
           F(r.entrada), F(r.salida), r.noches,
           esc(r.propiedad) + " · " + esc(r.habitacion || "todo el depa"),
@@ -3260,12 +3461,7 @@ function pintarReservas(){
           r.monto_total == null ? `<span style="color:#B07D2A">falta</span>` : S(r.monto_total),
           r.por_noche == null ? "—" : S(r.por_noche),
           esc(r.estado) + selloAnulado(r),
-          r.ingreso_id
-            ? `<span class="audit pagado">sí</span>`
-            : `<button class="secundario" style="padding:5px 12px;font-size:12px"
-                 data-res-ingreso="${r.id}"
-                 title="Registra ${S(r.monto_pagado)} como ingreso de ${esc(r.propiedad)} · recién ahí entra en la utilidad"
-                 ${Number(r.monto_pagado) > 0 ? "" : "disabled"}>Pasar a Ingresos</button>`,
+          {html: celdaEnIngresos(r), titulo: "Lo que de esta reserva ya está en Ingresos"},
           {html:`<span class="acc"><button data-res-editar="${r.id}" title="Editar">${IC.lapiz}</button>
             ${botonAnular("reservas", r, "reserva")}</span>`, titulo:""}
         ]})), [2,7,8,9])}</div>
@@ -3292,8 +3488,45 @@ document.addEventListener("click", (e) => {
   const ci = e.target.closest(".cal-cinta[data-res]");
   if (ci) return fichaReserva(Number(ci.dataset.res));
   const pi = e.target.closest("[data-res-ingreso]");
-  if (pi) return reservaAIngresos(Number(pi.dataset.resIngreso));
+  if (pi) {
+    const r = resDatos.find(x => x.id === Number(pi.dataset.resIngreso));
+    if (r) return fichaLiquidar(desdeReserva(r));
+  }
 });
+
+// La celda "En Ingresos" de cada reserva: lo que ya llegó, lo que
+// falta, y el botón para pasarlo.
+function celdaEnIngresos(r){
+  if (resLiq === null)
+    return `<span class="liq-falta" title="Falta correr airbnb-liquidacion.sql en Supabase">falta instalar</span>`;
+  const q = resLiquidado(r);
+  const cobrado = Number(r.monto_pagado || 0);
+  const falta = cobrado - q.bruto;
+  const hoy = new Date().toISOString().slice(0, 10);
+  let h = "";
+  if (q.veces) h += `<span class="liq-ok" title="Pagó ${S(q.bruto)}${q.desc ? " − descuento " + S(q.desc) : ""}">✓ ${S(q.neto)}</span>${
+      q.desc ? `<span class="liq-sub">pagó ${S(q.bruto)} − ${S(q.desc)}</span>` : ""}${
+      q.sinConfirmar ? `<span class="sello-confirmar">sin confirmar</span>` : ""}`;
+  if (falta > 0.004 || (!q.veces && cobrado === 0 && r.entrada <= hoy && !r.anulado))
+    h += `<button class="secundario" style="padding:5px 12px;font-size:12px;margin-top:${q.veces ? 6 : 0}px"
+            data-res-ingreso="${r.id}"
+            title="Te pregunta si Airbnb hizo algún descuento y pasa lo que llegó a Ingresos">${
+            falta > 0.004 ? (q.veces ? "Pasar " + S(falta) : "Pasar a Ingresos") : "Anotar cobro"}</button>`;
+  return h || `<span style="color:var(--gris-claro)">—</span>`;
+}
+
+// La reserva con la forma que espera la ficha de liquidar
+function desdeReserva(r){
+  const q = resLiquidado(r);
+  const c = resHuesped(r.huesped_id);
+  return {
+    id: r.id, propiedad: r.propiedad, habitacion: r.habitacion,
+    entrada: r.entrada, salida: r.salida, noches: r.noches, canal: r.canal,
+    volante: c ? c.volante : null,
+    cobrado: Number(r.monto_pagado || 0), ya_liquidado: q.bruto,
+    falta: Number(r.monto_pagado || 0) - q.bruto, monto_total: r.monto_total
+  };
+}
 
 function fichaReserva(id){
   const r = id ? resDatos.find(x => x.id === id) : null;
@@ -3435,31 +3668,353 @@ function fichaReserva(id){
     } : null);
 }
 
-// Pasa el dinero cobrado de una reserva a Ingresos. Recien ahi entra
-// en la utilidad. Guarda el id del ingreso en la reserva para que no
-// se pueda hacer dos veces.
-async function reservaAIngresos(id){
-  const r = resDatos.find(x => x.id === id);
-  if (!r) return;
-  if (r.ingreso_id) return alert("Esta reserva ya está en Ingresos.");
-  if (!(Number(r.monto_pagado) > 0)) return alert("Esta reserva no tiene nada cobrado todavía.");
-  if (!confirm(`¿Registrar ${S(r.monto_pagado)} como ingreso de ${r.propiedad}?\n\n`
-    + `Recién ahí entra en la utilidad del mes. No genera comisión de alquiler.`)) return;
+// ===============================================================
+// AIRBNB · LIQUIDAR
+// Liquidar = pasar la plata de una reserva a Ingresos. Antes de
+// pasarla se pregunta si Airbnb hizo algún descuento, y entra en
+// Ingresos LO QUE LLEGÓ, con el nombre del volante.
+//
+// Todo pasa por tres funciones de la base (liquidar_reserva,
+// corregir_liquidacion, anular_liquidacion), que hacen la
+// liquidación y su ingreso de una sola vez: o se guarda todo o no
+// se guarda nada. Nunca queda un ingreso suelto ni una reserva a
+// medias.
+// ===============================================================
+const liqPorId     = new Map();   // las liquidaciones que se han visto, por id
+const airPendPorId = new Map();   // lo que falta liquidar, por id de reserva
+const LIQ_MOTIVOS  = ["comisión Airbnb", "impuesto", "tipo de cambio", "otro"];
 
-  const {data, error} = await sb.from("ing_alquiler").insert({
-    fecha: r.entrada, propiedad: r.propiedad, habitacion: r.habitacion || "",
-    inquilino: resQuien(r),
-    concepto: "airbnb", monto: Number(r.monto_pagado), comision: 0,
-    nota: `Reserva ${r.entrada} → ${r.salida} · ${r.noches} `
-          + `${r.noches === 1 ? "noche" : "noches"} · ${resCanal(r.canal).rotulo}`
-          + (r.codigo ? " · " + r.codigo : "")
-  }).select().single();
-
-  if (error) return alert("No se registró: " + error.message);
-  const {error: e2} = await sb.from("reservas").update({ingreso_id: data.id}).eq("id", id);
-  if (e2) alert("El ingreso se creó, pero no se pudo marcar la reserva: " + e2.message);
-  refrescarAlq();
+// Todo lo de Airbnb de un mes en UNA llamada a Supabase. Si la base
+// todavía no tiene lo de Airbnb, no revienta: devuelve el error para
+// decirlo en pantalla.
+async function cargarPanelAirbnb(mes){
+  try {
+    const {data, error} = await sb.rpc("panel_airbnb", {p_mes: mes});
+    if (error) return {datos: null, error: error.message};
+    [...(data.liquidaciones || []), ...(data.sin_confirmar || [])].forEach(l => liqPorId.set(l.id, l));
+    airPendPorId.clear();
+    (data.por_liquidar || []).forEach(p => airPendPorId.set(p.id, p));
+    return {datos: data, error: null};
+  } catch (e) {
+    return {datos: null, error: String(e && (e.message || e))};
+  }
 }
+
+// Los avisos que salen arriba de Ingresos. No se van solos: se
+// quedan mientras haya algo pendiente.
+function bandasAirbnb(panel){
+  if (panel.error) {
+    const faltaSql = /panel_airbnb|schema cache|does not exist/i.test(panel.error);
+    return `<div class="banda"><span>${faltaSql
+      ? "<b>Falta instalar lo de Airbnb.</b> Córrele <b>airbnb-liquidacion.sql</b> en Supabase: hasta entonces la plata de las reservas no llega aquí sola."
+      : "<b>No se pudo leer lo de Airbnb:</b> " + esc(panel.error)}</span></div>`;
+  }
+  const p = panel.datos || {};
+  const pend = (p.por_liquidar || []);
+  const conPlata = pend.filter(x => x.estado === "falta pasar");
+  const sinCobro = pend.length - conPlata.length;
+  const falta = conPlata.reduce((t,x) => t + Number(x.falta), 0);
+  const sc = (p.sin_confirmar || []).length;
+  let h = "";
+  if (conPlata.length || sinCobro) h += `<div class="banda"><span>
+      ${conPlata.length ? `<b>${conPlata.length} ${conPlata.length === 1 ? "reserva cobrada todavía no está" : "reservas cobradas todavía no están"} en Ingresos</b> (${S(falta)} que pagaron los huéspedes).` : ""}
+      ${sinCobro ? `${conPlata.length ? "Y " : ""}<b>${sinCobro} ${sinCobro === 1 ? "reserva ya empezó" : "reservas ya empezaron"}</b> sin ningún cobro anotado.` : ""}
+      Mientras no se pasen, no suman en la utilidad.</span>
+      <button class="secundario" data-ir-pestana="airbnb">Ir a Airbnb</button></div>`;
+  if (sc) h += `<div class="banda"><span><b>${sc} ${sc === 1 ? "ingreso de Airbnb pasó" : "ingresos de Airbnb pasaron"} sin la pregunta del descuento</b>
+      (con el botón de antes). Puede que estén contando más de lo que llegó.</span>
+      <button class="secundario" data-ir-pestana="airbnb">Responder</button></div>`;
+  return h;
+}
+
+// ---------- la pestaña Airbnb del módulo Egresos ----------
+async function pintarAirbnb(){
+  const {desde} = rango();
+  const [a, m] = mesActual.split("-").map(Number);
+  const panel = await cargarPanelAirbnb(desde);
+  if (panel.error) {
+    $("contenido").innerHTML = bandasAirbnb(panel) + avisoRoto(new Error(panel.error))
+      .replace('onclick="refrescarAlq()"', 'onclick="refrescar()"');
+    return;
+  }
+  const p = panel.datos;
+  const pend      = p.por_liquidar || [];
+  const conPlata  = pend.filter(x => x.estado === "falta pasar");
+  const todas     = p.liquidaciones || [];
+  const vivas     = todas.filter(l => !l.anulado);
+  const filas     = vivos(todas);
+  const anuladas  = todas.length - vivas.length;
+  const B = vivas.reduce((t,l) => t + Number(l.bruto), 0);
+  const D = vivas.reduce((t,l) => t + Number(l.descuento), 0);
+  const faltaTotal = conPlata.reduce((t,x) => t + Number(x.falta), 0);
+  const ctrl = p.control;
+  const mesTxt = RES_MESES[m - 1] + " " + a;
+  const sinConf = p.sin_confirmar || [];
+  const sueltos = p.sueltos || [];
+
+  const quien = x => x.volante
+    ? `<span class="volante-sello">${esc(x.volante)}</span>`
+    : `<span style="color:var(--gris-claro)">sin volante</span>`;
+  const estadia = x => `${F(x.entrada)} → ${F(x.salida)}<span class="liq-sub">${x.noches} ${x.noches === 1 ? "noche" : "noches"}</span>`;
+  const donde = x => `${esc(x.propiedad)} · hab ${esc(x.habitacion || "todo el depa")}`;
+  const canal = x => `<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap">
+      <i style="width:9px;height:9px;border-radius:3px;flex:none;background:${resCanal(x.canal).color}"></i>${resCanal(x.canal).rotulo}</span>`;
+
+  $("contenido").innerHTML = `
+    <div class="cifras">
+      <div class="cifra"><span>PAGARON LOS HUÉSPEDES</span><strong>${S(B)}</strong></div>
+      <div class="cifra egre" title="${B ? (D * 100 / B).toFixed(1) + "% de lo que pagaron" : ""}"><span>DESCUENTOS DE AIRBNB</span><strong>${S(D)}</strong></div>
+      <div class="cifra util" title="Esto es lo que suma en Ingresos y en la utilidad"><span>LLEGÓ A LA CUENTA</span><strong>${S(B - D)}</strong></div>
+      <div class="cifra ${pend.length ? "egre" : ""}"><span>FALTA PASAR</span><strong>${
+        conPlata.length ? S(faltaTotal) : pend.length ? pend.length + " sin cobro" : S(0)}</strong></div>
+    </div>
+
+    <div class="tarjeta ${pend.length ? "liq-pend" : ""}">
+      <div class="cabecera-tarjeta"><h4>Falta pasar a Ingresos${pend.length ? " · " + pend.length : ""}</h4></div>
+      ${pend.length ? `
+        <p class="vacio" style="text-align:left;padding:0 0 8px">De todos los meses, no solo de ${esc(mesTxt)}.
+          Mientras una reserva esté en esta lista, su plata <b>no suma</b> en Ingresos ni en la utilidad.</p>
+        <div class="tabla-scroll">${tabla(
+          ["Volante","Estadía","Dónde","Canal","Cobrado","Ya en Ingresos","Falta",""],
+          pend.map(x => [quien(x), estadia(x), donde(x), canal(x), S(x.cobrado), S(x.ya_liquidado),
+            x.estado === "falta pasar"
+              ? `<b class="liq-falta">${S(x.falta)}</b>`
+              : `<span class="liq-falta">ya entró · sin cobro anotado</span>`,
+            {html:`<button class="primario" style="margin:0;padding:7px 14px;font-size:12.5px;width:auto;white-space:nowrap"
+              data-liq="${x.id}">${x.estado === "falta pasar" ? "Pasar a Ingresos" : "Anotar y pasar"}</button>`, titulo:"Te pregunta si Airbnb descontó algo y pasa lo que llegó"}]),
+          [4,5,6])}</div>`
+      : `<div class="banda bien" style="margin:0"><span>Todo lo cobrado ya está en Ingresos. No falta nada.</span></div>`}
+    </div>
+
+    ${sinConf.length ? `<div class="tarjeta liq-pend">
+      <div class="cabecera-tarjeta"><h4>Pasaron sin la pregunta del descuento · ${sinConf.length}</h4></div>
+      <p class="vacio" style="text-align:left;padding:0 0 8px">Se pasaron con el botón de antes, con el monto
+        completo que pagó el huésped. Si Airbnb descontó algo, en Ingresos hay más de lo que llegó.
+        Respóndeles la pregunta y quedan confirmadas.</p>
+      <div class="tabla-scroll">${tabla(["Volante","Estadía","Dónde","En Ingresos","Con fecha",""],
+        sinConf.map(l => [quien(l), estadia(l), donde(l), S(l.neto), F(l.fecha),
+          {html:`<button class="secundario" style="padding:6px 13px;font-size:12.5px" data-liq-corregir="${l.id}">Responder</button>`, titulo:"Confirmar si hubo descuento"}]),
+        [3])}</div>
+    </div>` : ""}
+
+    <div class="tarjeta">
+      <div class="cabecera-tarjeta"><h4>Lo que pasó a Ingresos en ${esc(mesTxt)} · ${vivas.length}</h4></div>
+      <div class="tabla-scroll">${tabla(
+        ["Fecha","Volante","Estadía","Dónde","Pagó el huésped","Descuento","Llegó","Cuenta",""],
+        filas.map(l => ({clase: l.anulado ? "anulada" : "", celdas: [
+          F(l.fecha), quien(l) + (l.confirmado ? "" : `<span class="sello-confirmar">sin confirmar</span>`),
+          estadia(l), donde(l), S(l.bruto),
+          !l.confirmado
+            ? `<span class="liq-falta" title="Pasó con el botón de antes: nadie respondió si Airbnb descontó algo">no se preguntó</span>`
+            : Number(l.descuento)
+            ? `<span class="liq-menos">− ${S(l.descuento)}</span><span class="liq-sub">${esc(l.motivo || "descuento")} · ${l.pct_descuento}%</span>`
+            : `<span style="color:var(--gris-claro)">sin descuento</span>`,
+          `<b>${S(l.neto)}</b>${l.cuadra ? "" : `<span class="liq-sub" style="color:var(--alerta)">⚠ no cuadra con Ingresos</span>`}`
+            + selloAnulado(l),
+          esc(l.metodo_pago || "—"),
+          {html:`<span class="acc">
+            ${l.anulado ? "" : `<button data-liq-corregir="${l.id}" title="Corregir el descuento, la fecha o la cuenta">${IC.lapiz}</button>
+            <button class="peligro" data-liq-anular="${l.id}" title="Anular · se anula también su ingreso · no se borra">${IC.anular}</button>`}</span>`, titulo:""}
+        ]})), [4,5,6])}</div>
+      <div class="pie-tarjeta">
+        <span class="exp-saldo"><span>pagaron</span>${S(B)}</span>
+        <span class="exp-saldo"><span>descuentos</span>${S(D)}</span>
+        <span class="exp-saldo"><span>llegó</span><strong>${S(B - D)}</strong></span>
+        ${botonVerAnulados(anuladas)}
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h4>Cuadre con Ingresos · ${esc(mesTxt)}</h4>
+      ${ctrl ? `<div class="cuadre-airbnb">
+          <span>pagaron <b>${S(ctrl.cobrado)}</b></span>
+          <span>− descuentos <b>${S(ctrl.descuentos)}</b></span>
+          <span>= llegó <b>${S(ctrl.llego)}</b></span>
+          <span>en Ingresos (Airbnb) <b>${S(ctrl.en_ingresos)}</b></span>
+          ${ctrl.cuadra ? `<span class="liq-ok">✓ cuadra</span>`
+                        : `<span class="liq-falta">⚠ no cuadra · avísame</span>`}
+        </div>
+        ${sueltos.length ? `<p class="vacio" style="text-align:left;padding:12px 0 6px">
+          <b style="color:var(--tinta);font-weight:500">${sueltos.length} ${sueltos.length === 1 ? "ingreso de Airbnb no viene" : "ingresos de Airbnb no vienen"} de ninguna reserva</b>
+          (se metieron a mano): ${S(ctrl.sueltos)}. Están en Ingresos y suman, pero sin volante ni descuento.
+          Para ordenarlos: anúlalos en Ingresos y pasa cada reserva desde aquí.</p>
+          <div class="tabla-scroll">${tabla(["Fecha","Casa","Nombre","Monto","Nota"],
+            sueltos.map(s => [F(s.fecha), esc(s.propiedad) + (s.habitacion ? " · hab " + esc(s.habitacion) : ""),
+              esc(s.inquilino || "—"), S(s.monto), esc(s.nota || "")]), [3])}</div>` : ""}`
+      : `<p class="vacio" style="text-align:left;padding:0">Sin movimientos de Airbnb en ${esc(mesTxt)}.</p>`}
+      <p class="vacio" style="text-align:left;padding:14px 0 0">
+        <b style="color:var(--tinta);font-weight:500">Cómo funciona:</b> la reserva se anota en
+        Alquileres › Reservas. Cuando llega la plata, aquí aprietas <i>Pasar a Ingresos</i>, respondes si
+        Airbnb descontó algo, y entra en Ingresos lo que llegó, con el nombre del volante, en la habitación
+        de la reserva. Más detalle en el <b>Manual</b>, abajo a la izquierda.</p>
+    </div>`;
+}
+
+// La forma que espera la ficha, desde una fila de "falta pasar"
+const desdePendiente = x => ({
+  id: x.id, propiedad: x.propiedad, habitacion: x.habitacion,
+  entrada: x.entrada, salida: x.salida, noches: x.noches, canal: x.canal,
+  volante: x.volante, cobrado: Number(x.cobrado), ya_liquidado: Number(x.ya_liquidado),
+  falta: Number(x.falta), monto_total: x.monto_total == null ? null : Number(x.monto_total)
+});
+// ...y desde una liquidación ya hecha (para corregirla)
+const desdeLiquidacion = l => ({
+  id: l.reserva_id, propiedad: l.propiedad, habitacion: l.habitacion,
+  entrada: l.entrada, salida: l.salida, noches: l.noches, canal: l.canal,
+  volante: l.volante, cobrado: null, ya_liquidado: null, falta: null, monto_total: null
+});
+
+// La ficha: la pregunta del descuento. Sirve para pasar una reserva
+// (liq = null) y para corregir o confirmar una ya pasada.
+function fichaLiquidar(p, liq = null){
+  const corrigiendo = !!liq;
+  const nombre = p.volante || ("Sin volante · reserva del " + String(p.entrada).slice(8, 10) + "/" + String(p.entrada).slice(5, 7));
+  const r2 = n => Math.round(Number(n) * 100) / 100;
+  const brutoIni = corrigiendo ? Number(liq.bruto)
+    : p.falta > 0 ? r2(p.falta)
+    : p.monto_total != null && p.monto_total - p.ya_liquidado > 0 ? r2(p.monto_total - p.ya_liquidado) : "";
+  // la respuesta NO viene marcada: hay que elegirla. Solo si se está
+  // corrigiendo una ya confirmada se muestra la que tenía.
+  const respuesta = corrigiendo && liq.confirmado ? (liq.hubo_descuento ? "si" : "no") : "";
+
+  abrirFicha(corrigiendo ? (liq.confirmado ? "Corregir lo que pasó a Ingresos" : "Confirmar el descuento") : "Pasar a Ingresos", `
+    <div class="liq-cabeza">
+      ${p.volante ? `<span class="volante-sello">${esc(p.volante)}</span>` : `<span class="sello-confirmar">sin volante</span>`}
+      <span>${esc(p.propiedad)} · hab ${esc(p.habitacion || "todo el depa")} · ${F(p.entrada)} → ${F(p.salida)}
+        · ${p.noches} ${p.noches === 1 ? "noche" : "noches"} · ${resCanal(p.canal).rotulo}</span>
+    </div>
+    <div class="rejilla">
+      <div><label for="lq-bruto">Lo que pagó el huésped</label>
+        <input id="lq-bruto" type="number" step="0.01" min="0" inputmode="decimal" value="${brutoIni}"></div>
+      <div><label for="lq-fecha">Fecha con la que entra</label>
+        <input id="lq-fecha" type="date" value="${esc(corrigiendo ? liq.fecha : p.entrada)}"></div>
+      <div><label for="lq-metodo">¿A qué cuenta llegó?</label>
+        <select id="lq-metodo">${opcionesMetodo(corrigiendo ? liq.metodo_pago : "")}</select></div>
+    </div>
+    <div class="liq-pregunta">
+      <p><b>¿Airbnb hizo algún descuento o comisión?</b></p>
+      <div class="liq-sino" role="radiogroup" aria-label="¿Hubo descuento?">
+        <label><input type="radio" name="lq-hubo" value="no" ${respuesta === "no" ? "checked" : ""}> No, llegó completo</label>
+        <label><input type="radio" name="lq-hubo" value="si" ${respuesta === "si" ? "checked" : ""}> Sí, llegó menos</label>
+      </div>
+      <div class="rejilla liq-detalle ${respuesta === "si" ? "" : "oculto"}" id="lq-detalle">
+        <div><label for="lq-llego">¿Cuánto llegó a la cuenta?</label>
+          <input id="lq-llego" type="number" step="0.01" min="0" inputmode="decimal"
+            value="${corrigiendo && liq.hubo_descuento ? Number(liq.neto) : ""}"></div>
+        <div><label for="lq-desc">Descuento</label>
+          <input id="lq-desc" type="number" step="0.01" min="0" inputmode="decimal"
+            value="${corrigiendo && liq.hubo_descuento ? Number(liq.descuento) : ""}"></div>
+        <div><label for="lq-motivo">Por qué</label>
+          <select id="lq-motivo">${[...new Set([...(liq?.motivo ? [liq.motivo] : []), ...LIQ_MOTIVOS])]
+            .map(mo => `<option ${liq?.motivo === mo ? "selected" : ""}>${esc(mo)}</option>`).join("")}</select></div>
+      </div>
+    </div>
+    <label for="lq-nota">Nota (opcional)</label>
+    <input id="lq-nota" value="${esc(liq?.nota || "")}" placeholder="p.ej. Airbnb pagó en dos partes">
+    <div class="liq-resumen" id="lq-resumen" aria-live="polite"></div>`,
+    async () => {
+      const b = num("lq-bruto");
+      const h = respuestaElegida();
+      if (!(b > 0)) return "Falta lo que pagó el huésped.";
+      if (!h) return "Falta responder si Airbnb hizo algún descuento: elige Sí o No.";
+      const d = h === "si" ? num("lq-desc") : 0;
+      if (h === "si" && !(d > 0)) return "Dijiste que sí hubo descuento: escribe cuánto llegó o cuánto descontaron.";
+      if (d >= b) return "El descuento no puede ser igual o mayor que lo que pagó el huésped.";
+      const fecha = $("lq-fecha").value;
+      if (!fecha) return "Falta la fecha con la que entra.";
+      const args = {
+        p_fecha: fecha, p_bruto: b, p_hubo_descuento: h === "si", p_descuento: d || 0,
+        p_motivo: h === "si" ? $("lq-motivo").value : null,
+        p_metodo: $("lq-metodo").value || null,
+        p_nota: $("lq-nota").value.trim() || null
+      };
+      const {data, error} = corrigiendo
+        ? await sb.rpc("corregir_liquidacion", {p_id: liq.id, ...args})
+        : await sb.rpc("liquidar_reserva", {p_reserva: p.id, ...args});
+      if (error) return "No se guardó: " + error.message;
+      // la confirmación sí puede irse sola: lo que se guardó ya se ve en la tabla
+      setTimeout(() => avisoSuelto((corrigiendo ? "Corregido: " : "Pasó a Ingresos: ")
+        + nombre + " · " + S(data?.neto ?? (b - d))), 80);
+      return null;
+    },
+    corrigiendo && !liq.anulado ? async () => {
+      const {error} = await sb.rpc("anular_liquidacion", {p_id: liq.id});
+      return error ? "No se anuló: " + error.message : null;
+    } : null);
+
+  $("ficha-guardar").textContent = corrigiendo ? "Guardar" : "Pasar a Ingresos";
+
+  function num(id){ const v = $(id).value; return v === "" ? null : Math.round(Number(v) * 100) / 100; }
+  function respuestaElegida(){ return (document.querySelector('input[name="lq-hubo"]:checked') || {}).value || ""; }
+  const pintar = () => {
+    const b = num("lq-bruto") || 0;
+    const h = respuestaElegida();
+    $("lq-detalle").classList.toggle("oculto", h !== "si");
+    const d = h === "si" ? (num("lq-desc") || 0) : 0;
+    let t;
+    if (!h) t = `<span class="ojo">Falta responder la pregunta de arriba: <b>sí</b> o <b>no</b>. Sin eso no se guarda.</span>`;
+    else t = `Entra en Ingresos como <b>${esc(nombre)}</b> · ${esc(p.propiedad)} hab ${esc(p.habitacion || "—")} ·
+      <b>${S(b - d)}</b><br>${d ? `pagó ${S(b)} − ${esc($("lq-motivo").value)} ${S(d)}
+      (${b ? (d * 100 / b).toFixed(1) : 0}%)` : `pagó ${S(b)} · sin descuento`}`;
+    if (p.cobrado != null) {
+      if (b > 0 && p.ya_liquidado + b > p.cobrado + 0.004)
+        t += `<br><span class="ojo">La reserva tenía ${S(p.cobrado)} cobrado. Al guardar, lo pagado de la reserva sube a ${S(p.ya_liquidado + b)}.</span>`;
+      if (p.monto_total != null && p.ya_liquidado + b > p.monto_total + 0.004)
+        t += `<br><span class="ojo">Es más que el total de la estadía (${S(p.monto_total)}): no se va a poder guardar. Corrige el total en Reservas.</span>`;
+    }
+    if (!p.volante) t += `<br><span class="ojo">Esta reserva no tiene volante: entrará como «${esc(nombre)}». Si ya le diste uno en WhatsApp, pónselo primero en Reservas.</span>`;
+    $("lq-resumen").innerHTML = t;
+  };
+  // "llegó" y "descuento" se completan uno al otro
+  const desdeLlego = () => {
+    const b = num("lq-bruto"), l = num("lq-llego");
+    if (b != null && l != null) $("lq-desc").value = Math.max(0, Math.round((b - l) * 100) / 100);
+  };
+  document.querySelectorAll('input[name="lq-hubo"]').forEach(x => x.addEventListener("change", pintar));
+  $("lq-bruto").addEventListener("input", () => { desdeLlego(); pintar(); });
+  $("lq-llego").addEventListener("input", () => { desdeLlego(); pintar(); });
+  $("lq-desc").addEventListener("input", () => {
+    const b = num("lq-bruto"), d = num("lq-desc");
+    if (b != null && d != null) $("lq-llego").value = Math.round((b - d) * 100) / 100;
+    pintar();
+  });
+  $("lq-motivo").addEventListener("change", pintar);
+  pintar();
+}
+
+async function anularLiquidacion(id){
+  const l = liqPorId.get(id);
+  if (!confirm(`¿Anular este ingreso de Airbnb${l ? " (" + (l.volante || "sin volante") + " · " + S(l.neto) + ")" : ""}?\n\n`
+    + "Se anulan juntos el ingreso y su liquidación: dejan de sumar, pero no se borran. "
+    + "La reserva vuelve a salir en «Falta pasar a Ingresos».")) return;
+  const {error} = await sb.rpc("anular_liquidacion", {p_id: id});
+  if (error) { alert("No se anuló: " + error.message); return; }
+  (pestAlqVivo() ? refrescarAlq : refrescar)();
+}
+
+document.addEventListener("click", (e) => {
+  const ir = e.target.closest("[data-ir-pestana]");
+  if (ir) {
+    pestanaActual = ir.dataset.irPestana;
+    refrescar();
+    document.querySelector(".pestanas")?.scrollIntoView({behavior: "smooth", block: "start"});
+    return;
+  }
+  const a = e.target.closest("[data-liq]");
+  if (a) {
+    const x = airPendPorId.get(Number(a.dataset.liq));
+    if (x) fichaLiquidar(desdePendiente(x));
+    return;
+  }
+  const c = e.target.closest("[data-liq-corregir]");
+  if (c) {
+    const l = liqPorId.get(Number(c.dataset.liqCorregir));
+    if (l) fichaLiquidar(desdeLiquidacion(l), l);
+    return;
+  }
+  const x = e.target.closest("[data-liq-anular]");
+  if (x) return anularLiquidacion(Number(x.dataset.liqAnular));
+});
 
 // ---------- pestaña servicios · luz, gas y mantenimiento ----------
 // La paleta pasó el validador de daltonismo en las cuatro ranuras
@@ -3766,7 +4321,7 @@ function pintarServicios(){
       <div class="tabla-scroll">${srvTabla(meses, mapa, conDatos)}</div>
     </div>` : ""}
 
-    <div class="tarjeta">
+    <div class="tarjeta solo-admin">
       <h4>Registrar ${def.art} del mes</h4>
       <p class="vacio" style="text-align:left;padding:0 0 14px">
         ${faltanEsteMes.length
@@ -5404,12 +5959,22 @@ function colorCasa(prop){
 async function pintarPorHabitacion(){
   const {desde, hasta} = rango();
 
-  const [{data: props}, {data: hab}, {data: pagos}, {data: egr}] = await Promise.all([
+  const [{data: props}, {data: hab}, {data: pagos}, {data: egr}, panel] = await Promise.all([
     sb.from("config_propiedad").select("propiedad, color, activa"),
     sb.from("v_resumen_habitacion").select("*").eq("mes", desde),
     sb.from("ing_alquiler").select("*").gte("fecha", desde).lte("fecha", hasta).order("fecha"),
-    sb.from("v_egresos_habitacion").select("*").eq("mes", desde)
+    sb.from("v_egresos_habitacion").select("*").eq("mes", desde),
+    cargarPanelAirbnb(desde)
   ]);
+  // lo de Airbnb de cada casa: pagaron, descuentos, llegó
+  const airCasa = {};
+  (panel.datos?.liquidaciones || []).filter(l => !l.anulado).forEach(l => {
+    const a = airCasa[l.propiedad] ||= {bruto:0, desc:0, n:0};
+    a.bruto += Number(l.bruto); a.desc += Number(l.descuento); a.n++;
+  });
+  // una fila es de Airbnb si la base lo dice, o (si todavía no se
+  // corrió airbnb-liquidacion.sql) si se llama como un volante
+  const esAir = f => f.es_airbnb ?? /^(volante|sin volante)/i.test(f.inquilino || "");
 
   propsColor = Object.fromEntries((props||[]).map(p => [p.propiedad, p.color]));
 
@@ -5447,13 +6012,23 @@ async function pintarPorHabitacion(){
             // Una habitación puede tener dos filas si cambió de
             // inquilino a mitad de mes. Se marca, porque si no
             // parece que la casa tiene más cuartos de los que tiene.
-            esc(f.inquilino || "—")
-              + (f.sigue_activo === false
-                  ? ` <span class="sello-fue" title="Ya no vive aquí">se fue</span>` : "")
-              + (f.es_relevo
-                  ? ` <span class="sello-relevo" title="Esta habitación cambió de inquilino este mes">relevo</span>` : ""),
+            // Las de Airbnb son una fila por volante: ahí no es relevo,
+            // es un huésped distinto cada vez.
+            esAir(f)
+              ? `<span class="volante-sello">${esc(f.inquilino || "—")}</span><span class="sello-airbnb">airbnb</span>`
+              : esc(f.inquilino || "—")
+                + (f.sigue_activo === false
+                    ? ` <span class="sello-fue" title="Ya no vive aquí">se fue</span>` : "")
+                + (f.es_relevo
+                    ? ` <span class="sello-relevo" title="Esta habitación cambió de inquilino este mes">relevo</span>` : ""),
             S(f.ingresos), S(f.comision), S(f.neto), f.pagos]),
           [2,3,4,5])}</div>
+        ${airCasa[casa] ? `<p class="vacio" style="text-align:left;padding:12px 0 0">
+          <b style="color:#9B3552;font-weight:500">Airbnb en ${esc(casa)}:</b>
+          los huéspedes pagaron ${S(airCasa[casa].bruto)}
+          ${airCasa[casa].desc ? `− descuentos de Airbnb ${S(airCasa[casa].desc)}` : "· sin descuentos"}
+          = llegó ${S(airCasa[casa].bruto - airCasa[casa].desc)}.
+          En la tabla de arriba está lo que llegó, que es lo que suma.</p>` : ""}
         <div class="pie-tarjeta">
           <span class="exp-saldo"><span>ingresos de la casa</span>${S(ing)}</span>
           <span class="exp-saldo"><span>gastos de la casa</span>${S(gastos)}</span>
@@ -5467,7 +6042,7 @@ async function pintarPorHabitacion(){
   // operativa del cuadro de arriba, al céntimo.
   const cuadre = bloques ? `
     <div class="tarjeta">
-      <h4>Las tres casas juntas</h4>
+      <h4>Todas las casas juntas</h4>
       <div class="tabla-scroll">${tabla(
         ["", "Ingresos", "Gastos", "Comisión", "Diferencia"],
         [["Suma de las casas", S(gran.ing), S(gran.gastos), S(gran.com),
@@ -5707,6 +6282,151 @@ async function fichaDeudaArranque(id){
       return error ? error.message : null;
     });
 }
+
+// ===============================================================
+// EL MANUAL DE USO
+// Siempre a mano, abajo a la izquierda. Se abre en la parte que
+// corresponde a la pestaña donde estás.
+// ===============================================================
+const MANUAL = [
+  {id:"empezar", titulo:"Para empezar", temas:[], html:`
+    <p>Este sistema tiene dos negocios: <b>Creando Tendencias</b> (la tienda de cortinas) y
+      <b>Creando Hogares</b> (el alquiler de habitaciones). Cada uno abre sus módulos.</p>
+    <ul>
+      <li><b>Alquileres e inquilinos</b>: quién vive dónde, contratos, reservas por noche, garantías.</li>
+      <li><b>Egresos y gastos</b>: toda la plata que entra y sale, mes por mes, y la utilidad.</li>
+    </ul>
+    <p>Arriba de cada módulo hay <b>pestañas</b>. En Egresos, el selector de <b>Mes</b> cambia todo lo que ves.</p>
+    <p>Si tu cuenta es de <b>solo consulta</b>, ves todo pero no hay botones para cambiar nada.
+      Eso es a propósito: solo la administradora registra y corrige.</p>`},
+  {id:"numeros", titulo:"Los números de arriba", temas:["express","ingresos","habitacion","egresos","deudas","resumen","airbnb"], html:`
+    <ul>
+      <li><b>Ingresos</b>: lo que entró en el mes (alquileres, Airbnb, otros). De Airbnb cuenta lo que
+        <b>llegó a la cuenta</b>, no lo que pagó el huésped.</li>
+      <li><b>Gastos del negocio</b>: renta a los dueños, luz, gas, internet, limpieza…</li>
+      <li><b>Comisión 10%</b>: la parte de los alquileres que se reparte entre las socias. Airbnb no paga comisión.</li>
+      <li><b>Utilidad operativa</b> = ingresos − gastos − comisión. Es la ganancia del mes.</li>
+      <li><b>Garantías · no es utilidad</b>: la garantía que paga un inquilino está en la caja, pero es plata
+        de él y se le devuelve. Por eso va aparte (desde el 27/11/2026).</li>
+    </ul>`},
+  {id:"airbnb", titulo:"Airbnb: de la reserva a Ingresos", temas:["airbnb","alq-reservas"], html:`
+    <p>Airbnb le cobra al huésped un monto, se queda una comisión y deposita el resto. Por eso
+      <b>lo que pagó el huésped no es lo que llega</b>. El sistema guarda las dos cosas.</p>
+    <ol>
+      <li>La reserva se anota en <b>Alquileres › Reservas</b>, con su volante.</li>
+      <li>Cuando llega la plata, en <b>Egresos › Airbnb</b> (o en la fila de la reserva) se aprieta
+        <b>Pasar a Ingresos</b>.</li>
+      <li>El sistema pregunta: <b>¿Airbnb hizo algún descuento o comisión?</b> Sí o No. No viene marcado:
+        si nadie responde, no se guarda.</li>
+      <li>Si es sí, se escribe cuánto llegó (el descuento se calcula solo).</li>
+      <li>Entra en Ingresos <b>lo que llegó</b>, con el nombre del <b>volante</b>, en la casa y habitación de la reserva.</li>
+    </ol>
+    <div class="ejemplo">Volante 011 · BHSOUTH hab 3<br>pagó S/ 141.00 − comisión Airbnb S/ 41.00<br>
+      <b>entra en Ingresos: S/ 100.00</b></div>
+    <p>En la pestaña <b>Airbnb</b> se ve:</p>
+    <ul>
+      <li><b>Falta pasar a Ingresos</b>: reservas cobradas que todavía no suman. Si está vacía, no falta nada.
+        Muestra todos los meses, no solo el elegido.</li>
+      <li><b>Pasaron sin la pregunta del descuento</b>: las que se pasaron con el botón de antes. Puede que
+        cuenten de más hasta que alguien responda.</li>
+      <li><b>Lo que pasó a Ingresos</b> en el mes: pagó, descuento, llegó, y a qué cuenta.</li>
+      <li><b>Cuadre</b>: lo que llegó según las reservas tiene que ser igual a lo que hay en Ingresos.
+        Si dice <b>no cuadra</b>, hay que avisar.</li>
+    </ul>
+    <p>Un ingreso de Airbnb <b>no se cambia ni se anula desde Ingresos</b>: se hace desde Airbnb, para que la
+      reserva y el ingreso nunca se separen. La base no deja hacerlo de otra forma.</p>`},
+  {id:"volante", titulo:"¿Qué es un volante?", temas:["airbnb","alq-reservas","habitacion"], html:`
+    <p>El <b>volante</b> es el código de un huésped: <b>Volante 001</b>, <b>Volante 002</b>… Es de la
+      <b>persona</b>, no del pago: si vuelve en marzo, sigue siendo el mismo volante.</p>
+    <p>Nace cuando alguien <b>reserva</b>. En Ingresos y en Ingresos por habitación el huésped aparece con su
+      volante, nunca con su nombre. Si una reserva no tiene volante, sale como «Sin volante · reserva del dd/mm».</p>`},
+  {id:"ingresos", titulo:"Ingresos", temas:["ingresos"], html:`
+    <p>Todos los pagos del mes, uno por fila. Arriba salen avisos si hay plata de Airbnb que todavía no se pasó.</p>
+    <ul>
+      <li>Las filas de Airbnb muestran el volante y, debajo, cuánto pagó el huésped y cuánto descontó Airbnb.
+        El <b>Monto</b> es lo que llegó.</li>
+      <li><b>Comisión</b>: un clic marca si ya se pagó a las socias. «No aplica» = ese ingreso no genera comisión.</li>
+      <li>El clip guarda la foto del voucher.</li>
+      <li><b>Anulado</b> = no cuenta, pero no se borró. Nada se borra en este sistema.</li>
+    </ul>`},
+  {id:"habitacion", titulo:"Ingresos por habitación", temas:["habitacion"], html:`
+    <p>Lo mismo que Ingresos, pero ordenado por casa y por habitación, para ver cuánto rinde cada cuarto.</p>
+    <ul>
+      <li>En una habitación de Airbnb sale <b>un volante por fila</b>, con el sello <b>airbnb</b>.</li>
+      <li>Debajo de la casa: cuánto pagaron los huéspedes, cuánto descontó Airbnb y cuánto llegó.</li>
+      <li><b>Relevo</b> = esa habitación cambió de inquilino en el mes. <b>Se fue</b> = ya no vive ahí.</li>
+      <li>La suma de todas las casas tiene que dar la utilidad de arriba.</li>
+    </ul>`},
+  {id:"egresos", titulo:"Egresos, Mobiliario y Deudas", temas:["egresos","mobiliario","deudas"], html:`
+    <ul>
+      <li><b>Egresos</b>: cada gasto con su casa y categoría. «Devolver» = alguien lo pagó de su bolsillo y se le debe.</li>
+      <li><b>Mobiliario</b>: cada mueble o aparato tiene su ficha. Comprarlo no es gasto del mes: es capital.
+        Si se cambia una refrigeradora, la vieja queda dada de baja y la nueva es otra ficha.</li>
+      <li><b>Deudas</b>: lo que se debe y lo que ya se pagó.</li>
+    </ul>`},
+  {id:"resumen", titulo:"Resumen y Exprés", temas:["resumen","express"], html:`
+    <ul>
+      <li><b>Resumen</b>: el reparto de comisión, cada casa, la deuda viva y los últimos meses lado a lado.</li>
+      <li><b>Exprés</b>: movimientos rápidos del día (entró, salió). Los que dicen «por completar» todavía no
+        tienen a dónde van.</li>
+    </ul>`},
+  {id:"alquileres", titulo:"Alquileres e inquilinos", temas:["alq-inquilinos","alq-pagos","alq-propiedades","alq-servicios","alq-garantias","alq-rinde","alq-recordatorios","alq-reservas"], html:`
+    <ul>
+      <li><b>Inquilinos</b>: quién vive en cada habitación, contrato y monto.</li>
+      <li><b>Pagos</b>: quién pagó y quién falta este mes.</li>
+      <li><b>Propiedades</b>: las cuatro casas, sus dueños y la renta.</li>
+      <li><b>Luz, gas y mantenimiento</b>: cuánto se paga de cada servicio por casa y cómo va cambiando.</li>
+      <li><b>Depósitos de garantía</b>: cuánto se le debe devolver a cada inquilino.</li>
+      <li><b>Reservas</b>: el calendario de noches (Airbnb, WhatsApp). La columna <b>En Ingresos</b> dice
+        cuánto de cada reserva ya suma; si falta, sale el botón <b>Pasar a Ingresos</b>.</li>
+      <li><b>Lo que rinde</b>: ganancia de cada casa con todos sus costos.</li>
+      <li><b>Recordatorios</b>: los avisos automáticos que llegan a Google Chat.</li>
+    </ul>`},
+  {id:"glosario", titulo:"Palabras que se repiten", temas:[], html:`
+    <ul>
+      <li><b>Liquidar</b>: pasar la plata de una reserva a Ingresos.</li>
+      <li><b>Pagó el huésped</b> (bruto): lo que cobró Airbnb al huésped.</li>
+      <li><b>Descuento</b>: lo que se quedó Airbnb (comisión, impuesto…).</li>
+      <li><b>Llegó</b> (neto): lo que entró a la cuenta. Es lo que suma en la utilidad.</li>
+      <li><b>Anulado</b>: ya no cuenta, pero sigue guardado. Nada se borra.</li>
+      <li><b>Cuadre / control</b>: una fila que compara dos sumas que deberían ser iguales. Si no cuadran, algo falla.</li>
+    </ul>`}
+];
+
+function temaActual(){
+  if (!$("pantalla-modulo") || $("pantalla-modulo").classList.contains("oculto")) return null;
+  return pestAlqVivo() ? "alq-" + pestAlq : pestanaActual;
+}
+
+function abrirManual(){
+  const tema = temaActual();
+  // la parte propia de la pestaña primero; "los números" es general
+  const foco = MANUAL.find(s => tema && s.id !== "numeros" && s.temas.includes(tema))
+            || MANUAL.find(s => tema && s.temas.includes(tema)) || MANUAL[0];
+  $("manual-indice").innerHTML = MANUAL.map(s =>
+    `<button data-manual-ir="${s.id}" class="${s.id === foco.id ? "viva" : ""}">${esc(s.titulo)}</button>`).join("");
+  $("manual-cuerpo").innerHTML = MANUAL.map(s =>
+    `<section id="manual-${s.id}" class="${tema && s.temas.includes(tema) ? "resalta" : ""}">
+       <h5>${esc(s.titulo)}</h5>${s.html}</section>`).join("");
+  $("manual-velo").classList.add("abierto");
+  $("manual-velo").setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => $("manual-" + foco.id).scrollIntoView({block: "start"}));
+  $("manual-cerrar").focus();
+}
+function cerrarManual(){
+  $("manual-velo").classList.remove("abierto");
+  $("manual-velo").setAttribute("aria-hidden", "true");
+}
+$("manual-btn").addEventListener("click", abrirManual);
+$("manual-cerrar").addEventListener("click", cerrarManual);
+$("manual-velo").addEventListener("click", e => { if (e.target === $("manual-velo")) cerrarManual(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("manual-velo").classList.contains("abierto")) cerrarManual(); });
+$("manual-indice").addEventListener("click", e => {
+  const b = e.target.closest("[data-manual-ir]");
+  if (!b) return;
+  $("manual-indice").querySelectorAll("button").forEach(x => x.classList.toggle("viva", x === b));
+  $("manual-" + b.dataset.manualIr).scrollIntoView({block: "start", behavior: "smooth"});
+});
 
 // sesión abierta al recargar
 (async () => {
